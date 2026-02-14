@@ -1,5 +1,9 @@
 # HA Governance (HACS Custom Integration)
 
+[![Open your Home Assistant](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Starsurfer78&repository=ha-governance&category=integration)
+[![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Starsurfer78&repository=ha-governance&category=integration)
+[![Start Integration](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=ha_governance)
+
 Deterministischer Policy-Governor für Home Assistant. Evaluierte Zustände führen zu klar definierten Service-Calls mit Cooldown‑Loop‑Protection und transparentem Logging – komplett HA‑native, ohne Docker.
 
 ## Features
