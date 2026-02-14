@@ -1,7 +1,7 @@
 {
   "domain": "ha_governance",
   "name": "HA Governance",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "documentation": "https://github.com/Starsurfer78/ha-governance",
   "requirements": [],
   "codeowners": ["@Starsurfer78"],
