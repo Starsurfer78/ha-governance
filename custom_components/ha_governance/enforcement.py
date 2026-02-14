@@ -72,4 +72,4 @@ async def setup_periodic_cleanup(hass: HomeAssistant) -> None:
                 size = len(_ENFORCEMENT_CONTEXTS)
                 _ENFORCEMENT_CONTEXTS.clear()
                 _LOGGER.debug(f"[ha_governance] Periodic context cleanup: cleared {size} contexts")
-    hass.async_create_task(_cleanup_task())
+    hass.async_create_background_task(_cleanup_task(), "ha_governance_periodic_cleanup")
