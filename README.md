@@ -80,6 +80,10 @@ policies:
 - Ersttreffer‑Prinzip: höchste Priorität gewinnt, es wird nur eine Policy ausgeführt.
 - Cooldown schützt pro Policy vor wiederholter Ausführung in kurzer Zeit.
 - Event‑Verarbeitung ist serialisiert, um parallele Enforcements zu vermeiden.
+ - Loop‑Prevention per Context:
+   - Jeder Enforcement‑Call erhält einen eigenen Context; selbstverursachte Events werden erkannt und ignoriert.
+   - Kontext‑Cleanup nach 10 s verhindert Speicheraufbau.
+   - Periodischer Sicherheits‑Cleanup leert den Kontext‑Cache etwa stündlich.
 
 ## Troubleshooting
 - „Policy file not found“ im Log:  
