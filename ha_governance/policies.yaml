@@ -1,0 +1,11 @@
+policies:
+  - name: no_heating_when_window_open
+    priority: 100
+    when:
+      window_open: true
+      heating_active: true
+    enforce:
+      service: climate.set_hvac_mode
+      target: climate.heating
+      data:
+        hvac_mode: "off"
