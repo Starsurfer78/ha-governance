@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import operator
 from typing import Any, Dict, List, Optional, Tuple
 from homeassistant.core import HomeAssistant, State
 from .const import DEFAULT_POLICY_PATH
@@ -12,13 +13,58 @@ def _split_service(s: str) -> Tuple[str, str]:
 def _get_state(hass: HomeAssistant, entity_id: str) -> Optional[State]:
     return hass.states.get(entity_id)
 
+OPS = {
+    ">=": operator.ge,
+    "<=": operator.le,
+    ">": operator.gt,
+    "<": operator.lt,
+    "==": operator.eq,
+    "!=": operator.ne,
+}
+
+def _parse_expected(expected: Any):
+    if not isinstance(expected, str):
+        return None, expected
+    for symbol in sorted(OPS.keys(), key=len, reverse=True):
+        if expected.startswith(symbol):
+            return symbol, expected[len(symbol):]
+    return None, expected
+
+def _get_entity_value(hass: HomeAssistant, entity_path: str):
+    if "." not in entity_path:
+        return None
+    parts = entity_path.split(".")
+    entity_id = parts[0] + "." + parts[1]
+    state = hass.states.get(entity_id)
+    if state is None:
+        return None
+    if len(parts) > 2:
+        attr_name = parts[2]
+        return state.attributes.get(attr_name)
+    return state.state
+
 def _match_when(hass: HomeAssistant, when: Dict[str, Any]) -> bool:
-    for entity_id, expected in when.items():
-        st = _get_state(hass, entity_id)
-        if st is None:
+    for entity_path, expected in when.items():
+        value = _get_entity_value(hass, entity_path)
+        if value is None:
             return False
-        if st.state != str(expected):
-            return False
+        op_symbol, compare_value = _parse_expected(expected)
+        if op_symbol:
+            try:
+                op_func = OPS[op_symbol]
+                try:
+                    value_num = float(value)
+                    compare_num = float(compare_value)
+                    if not op_func(value_num, compare_num):
+                        return False
+                except (ValueError, TypeError):
+                    if not op_func(str(value), str(compare_value)):
+                        return False
+            except Exception:
+                return False
+        else:
+            if str(value) != str(compare_value):
+                return False
     return True
 
 def _sort_policies(policies: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
