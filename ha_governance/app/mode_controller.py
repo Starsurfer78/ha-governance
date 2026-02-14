@@ -3,7 +3,7 @@ Hybrid House Mode Controller.
 """
 import logging
 from datetime import datetime, time
-from .state_cache import StateCache
+from state_cache import StateCache
 
 logger = logging.getLogger(__name__)
 

@@ -5,7 +5,7 @@ import logging
 import yaml
 import os
 from typing import List, Dict, Optional, Tuple, Any
-from .state_cache import StateCache
+from state_cache import StateCache
 
 logger = logging.getLogger(__name__)
 

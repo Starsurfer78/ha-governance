@@ -1,11 +1,7 @@
-#!/command/with-contenv bashio
-# ==============================================================================
-# Home Assistant Add-on: HA Governance
-# Runs the HA Governance service
-# ==============================================================================
+#!/usr/bin/with-contenv bash
+set -e
 
-bashio::log.info "Starting HA Governance v0.1..."
+echo "[HA Governance] Starting service..."
 
-cd /app || bashio::exit.nok "Could not change to /app directory"
-
-exec python3 -u /app/main.py
+cd /app
+exec python3 -u main.py

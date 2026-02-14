@@ -1,104 +1,83 @@
-# HA Governance Add-on v0.1
+# HA Governance v0.1.46 - Simplified Build
 
-**Deterministic Policy Governor for Home Assistant**
+## What's Different from v0.1.45
 
-## 🚀 Installation
+### Removed Bashio Dependency
+v0.1.45 used `bashio::log` which might not be available in all base images.
+v0.1.46 uses plain `echo` - more portable.
 
-1. Add this repository to your Home Assistant Add-on Store
-2. Install "HA Governance"
-3. Configure your `ha_token` (Long-Lived Access Token) if not using Supervisor auto-auth
-4. Start the add-on
+### Simplified Paths
+- Before: `exec python3 -u /app/main.py`
+- Now: `cd /app && exec python3 -u main.py`
 
-## ⚙️ Configuration
+More explicit about working directory.
 
-### Options
+### Minimal Service Structure
+Removed optional `finish` script - only essential `run` and `type`.
 
-- `ha_token` (optional): Long-Lived Access Token
-  - Leave empty to use automatic Supervisor authentication
-  - Required for manual/external deployments
+---
 
-### Policies
+## Installation
 
-Create `/data/policies.yaml` or edit via File Editor:
-
-```yaml
-policies:
-  - name: no_heating_when_window_open
-    priority: 100
-    when:
-      binary_sensor.window_living_room: true
-      climate.heating: "heat"
-    enforce:
-      service: climate.set_hvac_mode
-      target: climate.heating
-      data:
-        hvac_mode: "off"
+Same as before:
+```bash
+cd /path/to/your/repo
+cp -r /path/to/ha_governance_v2/* .
+git add .
+git commit -m "Simplified s6-overlay structure (v0.1.46)"
+git push
 ```
 
-## 📊 Health Endpoint
+Then reload in HA Add-on Store.
 
-Access health status at: `http://homeassistant.local:8099/health`
+---
 
-Response:
-```json
-{
-  "status": "ok",
-  "websocket_connected": true,
-  "uptime_seconds": 3600
-}
+## If It Still Doesn't Start
+
+**SEE DEBUG.md FOR CRITICAL DEBUGGING STEPS!**
+
+The key is getting the ACTUAL container logs, not just supervisor logs.
+
+### Quick Check
+```bash
+# In HA Terminal or SSH
+docker logs addon_d2c4c7bf_ha_governance
 ```
 
-## 🔍 Logs
+This will show the REAL error.
 
-All actions are logged as structured JSON:
+---
 
-```json
-{
-  "timestamp": "2026-02-14T10:30:00",
-  "event_type": "policy_enforcement",
-  "policy": "no_heating_when_window_open",
-  "entity_id": "climate.heating",
-  "previous_state": "heat",
-  "effective_mode": "HOME",
-  "origin": "governor"
-}
+## Files Included
+
+```
+ha_governance_v2/
+├── Dockerfile            ← Simplified
+├── config.yaml           ← v0.1.46
+├── requirements.txt
+├── policies.yaml
+├── app/
+│   └── *.py             ← Your code (unchanged)
+├── rootfs/
+│   └── etc/s6-overlay/s6-rc.d/
+│       ├── ha_governance/
+│       │   ├── run      ← Simplified, no bashio
+│       │   └── type
+│       └── user/contents.d/
+│           └── ha_governance
+└── DEBUG.md             ← READ THIS IF STILL FAILING
 ```
 
-## 🛠️ Troubleshooting
+---
 
-### Add-on won't start
+## Expected Logs (Success)
 
-1. Check logs for authentication errors
-2. Verify `ha_token` if configured
-3. Ensure WebSocket URL is correct (`ws://supervisor/core/websocket`)
+```
+[HA Governance] Starting service...
+{"timestamp": "...", "level": "INFO", "message": "Starting HA Governance Add-on v0.1"}
+{"timestamp": "...", "level": "INFO", "message": "Connecting to ws://supervisor/core/websocket"}
+{"timestamp": "...", "level": "INFO", "message": "WebSocket connected"}
+{"timestamp": "...", "level": "INFO", "message": "Authentication successful"}
+```
 
-### Policies not triggering
-
-1. Verify entity IDs exist in Home Assistant
-2. Check policy conditions match actual states
-3. Review structured logs for evaluation details
-
-## 📚 Documentation
-
-Full documentation: [GitHub Repository](https://github.com/Starsurfer78/ha-governance)
-
-## ⚠️ v0.1 Scope
-
-This is a **Governor** (enforcement layer), not yet a full Home Manager:
-
-**Included:**
-- ✅ Hybrid House Mode (AUTO/HOME/AWAY/NIGHT)
-- ✅ Declarative Policy Engine
-- ✅ Post-Action Enforcement
-- ✅ Loop Protection
-- ✅ Structured Logging
-
-**Not Included (future v0.2+):**
-- ❌ Goal-based optimization
-- ❌ Simulation mode
-- ❌ Multi-user support
-- ❌ Learning capabilities
-
-## 📝 License
-
-MIT License - Copyright (c) 2026 Starsurfer78
+If you don't see this → check actual container logs (see DEBUG.md).

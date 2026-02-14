@@ -1,29 +1,27 @@
 ARG BUILD_FROM
 FROM ${BUILD_FROM}
 
-# Install Python and dependencies
+# Install Python
 RUN apk add --no-cache \
     python3 \
-    py3-pip \
-    && ln -sf python3 /usr/bin/python
+    py3-pip
 
 ENV PYTHONUNBUFFERED=1
 
-# Copy requirements and install
+# Install Python packages
 COPY requirements.txt /tmp/
 RUN pip3 install --no-cache-dir --break-system-packages -r /tmp/requirements.txt
 
-# Copy application files
+# Copy application
 WORKDIR /app
 COPY app/ /app/
 
-# Copy s6-overlay service definitions
+# Copy service definition
 COPY rootfs/ /
 
-# Copy default policies (will be overridden by /data mount)
+# Ensure scripts are executable
+RUN chmod +x /etc/s6-overlay/s6-rc.d/ha_governance/run
+
+# Copy default policies
 RUN mkdir -p /data
 COPY policies.yaml /data/policies.yaml
-
-# Make scripts executable
-RUN chmod a+x /etc/s6-overlay/s6-rc.d/ha_governance/run
-RUN chmod a+x /etc/s6-overlay/s6-rc.d/ha_governance/finish
