@@ -1,64 +1,33 @@
 # HA Governance Add-on v0.1
 
-Das **HA Governance Add-on** ist eine stabile Governance-Schicht für Home Assistant, die eine deklarative Policy Engine bereitstellt. Es überwacht Zustandsänderungen und korrigiert diese nachträglich (Post-Action Enforcement), falls sie gegen definierte Regeln verstoßen.
+**Deterministic Policy Governor for Home Assistant**
 
-**Status**: Implementierungsbereit (v0.1)
+## 🚀 Installation
 
-## 🚀 Features
+1. Add this repository to your Home Assistant Add-on Store
+2. Install "HA Governance"
+3. Configure your `ha_token` (Long-Lived Access Token) if not using Supervisor auto-auth
+4. Start the add-on
 
-### 1. Hybrid House Mode
-Verwaltet den globalen Hausmodus basierend auf einer hybriden Logik:
-*   **Manuelle Übersteuerung**: Hat Vorrang, gesteuert über `input_select.house_mode_override`.
-*   **Abgeleiteter Modus (Derived)**: Wenn keine manuelle Übersteuerung aktiv ist (`AUTO`), wird der Modus deterministisch berechnet:
-    *   `NIGHT`: 23:00 - 06:00 Uhr.
-    *   `AWAY`: Wenn keine Person (`person.*`) als `home` erkannt wird.
-    *   `HOME`: Standardfall.
+## ⚙️ Configuration
 
-### 2. Deklarative Policy Engine
-Regeln werden in einer `policies.yaml` Datei definiert.
-*   **Priorisierung**: Policies werden nach Priorität abgearbeitet.
-*   **Deterministisch**: Die erste zutreffende Policy mit Enforcement-Aktion gewinnt.
-*   **Limitierung**: Maximal 5 Policies in v0.1.
+### Options
 
-### 3. Post-Action Enforcement
-*   Reagiert auf `state_changed` Events via WebSocket.
-*   Korrigiert unerwünschte Zustände durch direkte Service-Calls an Home Assistant.
-*   **Loop-Schutz**: Aktionen des Governors werden erkannt und nicht erneut korrigiert.
+- `ha_token` (optional): Long-Lived Access Token
+  - Leave empty to use automatic Supervisor authentication
+  - Required for manual/external deployments
 
-### 4. Structured Logging
-Alle Aktionen werden als strukturiertes JSON geloggt, ideal für spätere Analysen.
-Beispiel:
-```json
-{
-  "timestamp": "2026-02-12T10:00:00",
-  "event_type": "policy_enforcement",
-  "policy": "no_heating_when_window_open",
-  "entity_id": "climate.heating",
-  "previous_state": "heat",
-  "new_state": "{'hvac_mode': 'off'}",
-  "effective_mode": "HOME",
-  "origin": "governor"
-}
-```
+### Policies
 
-### 5. Health Endpoint
-Ein HTTP-Endpunkt auf Port **8099** liefert den Gesundheitsstatus.
-*   `GET /health`
-*   Response: `{"status": "ok", "websocket_connected": true, "uptime_seconds": 120}`
+Create `/data/policies.yaml` or edit via File Editor:
 
-## ⚙️ Konfiguration
-
-### policies.yaml
-Die Datei muss im Datenverzeichnis des Add-ons liegen (oder im Root für lokale Tests).
-
-Beispiel:
 ```yaml
 policies:
   - name: no_heating_when_window_open
     priority: 100
     when:
-      window_open: true    # Erwartet Entity-State 'on'/'open'
-      heating_active: true # Erwartet Entity-State 'heat'/'on'
+      binary_sensor.window_living_room: true
+      climate.heating: "heat"
     enforce:
       service: climate.set_hvac_mode
       target: climate.heating
@@ -66,28 +35,70 @@ policies:
         hvac_mode: "off"
 ```
 
-## 🛠️ Entwicklung & Installation
+## 📊 Health Endpoint
 
-### Voraussetzungen
-*   Home Assistant Instanz (Supervisor Token für Auth)
-*   Python 3.11+
+Access health status at: `http://homeassistant.local:8099/health`
 
-### Lokal ausführen
-```bash
-# Environment Variables setzen
-export HA_WS_URL="ws://homeassistant.local:8123/api/websocket"
-export SUPERVISOR_TOKEN="dein_long_lived_access_token"
-
-# Starten
-python -m app.main
+Response:
+```json
+{
+  "status": "ok",
+  "websocket_connected": true,
+  "uptime_seconds": 3600
+}
 ```
 
-### Docker
-Das Projekt enthält ein `Dockerfile` für die Integration als Home Assistant Add-on.
+## 🔍 Logs
 
-## ⚠️ Scope & Limitierungen (v0.1)
-Folgende Funktionen sind **explizit nicht enthalten**:
-*   Kein Multi-User Support.
-*   Keine Simulation oder Goal Scoring.
-*   Keine UI oder Sprachsteuerung.
-*   Kein Machine Learning.
+All actions are logged as structured JSON:
+
+```json
+{
+  "timestamp": "2026-02-14T10:30:00",
+  "event_type": "policy_enforcement",
+  "policy": "no_heating_when_window_open",
+  "entity_id": "climate.heating",
+  "previous_state": "heat",
+  "effective_mode": "HOME",
+  "origin": "governor"
+}
+```
+
+## 🛠️ Troubleshooting
+
+### Add-on won't start
+
+1. Check logs for authentication errors
+2. Verify `ha_token` if configured
+3. Ensure WebSocket URL is correct (`ws://supervisor/core/websocket`)
+
+### Policies not triggering
+
+1. Verify entity IDs exist in Home Assistant
+2. Check policy conditions match actual states
+3. Review structured logs for evaluation details
+
+## 📚 Documentation
+
+Full documentation: [GitHub Repository](https://github.com/Starsurfer78/ha-governance)
+
+## ⚠️ v0.1 Scope
+
+This is a **Governor** (enforcement layer), not yet a full Home Manager:
+
+**Included:**
+- ✅ Hybrid House Mode (AUTO/HOME/AWAY/NIGHT)
+- ✅ Declarative Policy Engine
+- ✅ Post-Action Enforcement
+- ✅ Loop Protection
+- ✅ Structured Logging
+
+**Not Included (future v0.2+):**
+- ❌ Goal-based optimization
+- ❌ Simulation mode
+- ❌ Multi-user support
+- ❌ Learning capabilities
+
+## 📝 License
+
+MIT License - Copyright (c) 2026 Starsurfer78

@@ -1,5 +1,5 @@
 name: HA Governance
-version: "0.1.44"
+version: "0.1.45"
 slug: ha_governance
 description: Deterministic Policy Governor for Home Assistant
 startup: services
@@ -21,4 +21,3 @@ options:
 
 schema:
   ha_token: str
-

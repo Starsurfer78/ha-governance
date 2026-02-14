@@ -5,8 +5,6 @@ import asyncio
 import logging
 import os
 import signal
-import json
-import sys
 from .logging_config import setup_logging
 from .state_cache import StateCache
 from .ha_client import HAClient
@@ -19,45 +17,14 @@ logger = setup_logging()
 
 # Configuration
 HA_WS_URL = os.environ.get("HA_WS_URL", "ws://supervisor/core/websocket")
-
-def load_token():
-    """Load HA Token from Add-on options."""
-    # Priority 1: Supervisor Token (Internal, Auto-Auth)
-    token = os.environ.get("SUPERVISOR_TOKEN")
-    if token:
-        logger.info("Using SUPERVISOR_TOKEN from environment.")
-        return token
-
-    # Priority 2: Configured Token (Long-Lived Access Token)
-    options_path = "/data/options.json"
-    if os.path.exists(options_path):
-        try:
-            with open(options_path, "r") as f:
-                options = json.load(f)
-            token = options.get("ha_token")
-            if token:
-                logger.info("Using configured 'ha_token' from options.json.")
-                return token
-        except Exception as e:
-            raise RuntimeError(f"Failed to read options.json: {e}")
-
-    # Fallback for Local Dev (Environment Variable)
-    token = os.environ.get("HASSIO_TOKEN")
-    if token:
-        logger.warning("Using HASSIO_TOKEN from environment (Dev Mode).")
-        return token
-
-    raise ValueError("No valid Home Assistant Token found! Configure 'ha_token' or ensure SUPERVISOR_TOKEN is present.")
-
-try:
-    HA_TOKEN = load_token()
-except Exception as e:
-    logger.critical(f"Startup Failed: {e}")
-    sys.exit(1)
+HA_TOKEN = os.environ.get("SUPERVISOR_TOKEN", os.environ.get("HASSIO_TOKEN", ""))
 
 async def main():
     logger.info("Starting HA Governance Add-on v0.1")
     
+    if not HA_TOKEN:
+        logger.warning("No SUPERVISOR_TOKEN found. Authentication might fail.")
+
     # 1. Initialize State Cache
     state_cache = StateCache()
     
@@ -71,24 +38,19 @@ async def main():
     # 4. Initialize Enforcement
     enforcement = Enforcement(ha_client, state_cache, mode_controller)
     
-    # Global Event Processing Lock (Critical for Race Conditions)
-    event_processing_lock = asyncio.Lock()
-    
     # 5. Define Event Processing Logic
     async def process_event(event):
-        # Acquire Lock to ensure sequential processing
-        async with event_processing_lock:
-            # Loop Protection: Check if event was caused by us (origin=governor)
-            # Since we can't easily check origin field in all events, we rely on logic.
-            # But if we did tag it in context, we would check it here.
-            # For v0.1, we proceed to evaluate.
-            
-            # Evaluate Policies
-            result = await policy_engine.evaluate()
-            if result:
-                action, policy_name = result
-                logger.info(f"Policy '{policy_name}' matched. Enforcing...")
-                await enforcement.execute(policy_name, action)
+        # Loop Protection: Check if event was caused by us (origin=governor)
+        # Since we can't easily check origin field in all events, we rely on logic.
+        # But if we did tag it in context, we would check it here.
+        # For v0.1, we proceed to evaluate.
+        
+        # Evaluate Policies
+        result = await policy_engine.evaluate()
+        if result:
+            action, policy_name = result
+            logger.info(f"Policy '{policy_name}' matched. Enforcing...")
+            await enforcement.execute(policy_name, action)
 
     # 6. Link Event Processor
     ha_client.on_event = process_event

@@ -6,14 +6,9 @@ import asyncio
 import logging
 import json
 import os
-import sys
 from typing import Optional, Callable, Awaitable
 
 logger = logging.getLogger(__name__)
-
-class AuthError(Exception):
-    """Raised when authentication fails."""
-    pass
 
 class HAClient:
     def __init__(self, 
@@ -33,9 +28,6 @@ class HAClient:
         # Reconnect logic
         self._reconnect_delay = 1.0
         self._max_reconnect_delay = 60.0
-        # Syncing state
-        self._syncing = False
-        self._event_queue = []
 
     async def start(self):
         """Start the WebSocket connection loop."""
@@ -44,45 +36,19 @@ class HAClient:
         
         while self._running:
             try:
-                # 1. Connect and Authenticate
-                await self._connect_and_auth()
-                
-                # 2. Start Message Reader Task
-                read_task = asyncio.create_task(self._read_loop())
-                
-                # 3. Subscribe to Events (Queue events during sync)
-                self._syncing = True
-                await self._subscribe_events()
-                
-                # 4. Fetch Initial States
-                await self._fetch_initial_states()
-                
-                # 5. Process Queued Events and Enable Real-time
-                logger.info(f"Processing {len(self._event_queue)} queued events...")
-                for event in self._event_queue:
-                    await self._handle_event(event)
-                self._event_queue = []
-                self._syncing = False
-                
-                # 6. Wait for Reader Task (runs until connection lost)
-                await read_task
-                
-                # Reset delay on clean exit (unlikely here)
+                await self._connect()
+                # If connect returns successfully (e.g. clean close), reset delay
                 self._reconnect_delay = 1.0
-
-            except AuthError as e:
-                logger.critical(f"Fatal Authentication Error: {e}")
-                sys.exit(1)  # Fail fast
             except Exception as e:
                 logger.error(f"Connection error: {e}")
                 if self._running:
                     logger.info(f"Reconnecting in {self._reconnect_delay:.1f} seconds...")
                     await asyncio.sleep(self._reconnect_delay)
+                    # Exponential Backoff with Jitter (optional, simple doubling here)
                     self._reconnect_delay = min(self._reconnect_delay * 2, self._max_reconnect_delay)
             
-            # Clean up before reconnecting
-            if self._ws and not self._ws.closed:
-                await self._ws.close()
+            if self._running and (not self._ws or self._ws.closed):
+                continue
 
     async def stop(self):
         """Stop the WebSocket connection."""
@@ -93,37 +59,42 @@ class HAClient:
             await self._session.close()
         logger.info("HA Client stopped")
 
-    async def _connect_and_auth(self):
-        """Connect to Home Assistant and Authenticate."""
+    async def _connect(self):
+        """Connect to Home Assistant WebSocket API."""
         logger.info(f"Connecting to {self.url}...")
-        self._ws = await self._session.ws_connect(self.url)
-        logger.info("WebSocket connected")
-        
-        # Reset backoff on successful connection
-        self._reconnect_delay = 1.0
-        
-        # Authentication Phase
-        auth_msg = await self._ws.receive_json()
-        if auth_msg.get("type") != "auth_required":
-            logger.error(f"Unexpected message during auth: {auth_msg}")
-            raise AuthError("Unexpected message during auth")
+        async with self._session.ws_connect(self.url) as ws:
+            self._ws = ws
+            logger.info("WebSocket connected")
+            
+            # Reset backoff on successful connection
+            self._reconnect_delay = 1.0
+            
+            # Authentication Phase
+            auth_msg = await ws.receive_json()
+            if auth_msg.get("type") != "auth_required":
+                logger.error(f"Unexpected message during auth: {auth_msg}")
+                return
 
-        await self._ws.send_json({
-            "type": "auth",
-            "access_token": self.token
-        })
+            await ws.send_json({
+                "type": "auth",
+                "access_token": self.token
+            })
 
-        auth_response = await self._ws.receive_json()
-        if auth_response.get("type") != "auth_ok":
-            logger.error(f"Authentication failed: {auth_response}")
-            raise AuthError(f"Authentication failed: {auth_response}")
-        
-        logger.info("Authentication successful")
+            auth_response = await ws.receive_json()
+            if auth_response.get("type") != "auth_ok":
+                logger.error(f"Authentication failed: {auth_response}")
+                return
+            
+            logger.info("Authentication successful")
+            
+            # Initial State Sync
+            await self._fetch_initial_states()
+            
+            # Subscribe to events
+            await self._subscribe_events()
 
-    async def _read_loop(self):
-        """Read messages from WebSocket."""
-        try:
-            async for msg in self._ws:
+            # Message Loop
+            async for msg in ws:
                 if msg.type == aiohttp.WSMsgType.TEXT:
                     try:
                         data = json.loads(msg.data)
@@ -131,11 +102,8 @@ class HAClient:
                     except json.JSONDecodeError:
                         logger.error(f"Invalid JSON received: {msg.data}")
                 elif msg.type == aiohttp.WSMsgType.ERROR:
-                    logger.error(f"WebSocket error: {self._ws.exception()}")
+                    logger.error(f"WebSocket error: {ws.exception()}")
                     break
-        except Exception as e:
-            logger.error(f"Read loop error: {e}")
-            raise
 
     async def _handle_message(self, data: dict):
         """Handle incoming WebSocket messages."""
@@ -146,10 +114,16 @@ class HAClient:
             event_type = event.get("event_type")
             
             if event_type == "state_changed":
-                if self._syncing:
-                    self._event_queue.append(event)
-                else:
-                    await self._handle_event(event)
+                new_state = event.get("data", {}).get("new_state")
+                entity_id = event.get("data", {}).get("entity_id")
+                
+                if new_state and entity_id:
+                    # Update Cache
+                    await self.state_cache.update_entity(entity_id, new_state)
+                    
+                    # Notify listener (Policy Engine triggers here)
+                    if self.on_event:
+                        await self.on_event(event)
                         
         elif msg_type == "result":
             req_id = data.get("id")
@@ -159,19 +133,6 @@ class HAClient:
                     future.set_result(data.get("result"))
                 else:
                     future.set_exception(Exception(data.get("error")))
-
-    async def _handle_event(self, event: dict):
-        """Process a single event (Update Cache -> Notify Listener)."""
-        new_state = event.get("data", {}).get("new_state")
-        entity_id = event.get("data", {}).get("entity_id")
-        
-        if new_state and entity_id:
-            # Update Cache
-            await self.state_cache.update_entity(entity_id, new_state)
-            
-            # Notify listener (Policy Engine triggers here)
-            if self.on_event:
-                await self.on_event(event)
 
     async def _fetch_initial_states(self):
         """Fetch all states initially."""

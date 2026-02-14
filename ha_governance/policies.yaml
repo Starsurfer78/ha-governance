@@ -1,11 +1,9 @@
 policies:
-  - name: no_heating_when_window_open
+  - name: example_policy
     priority: 100
     when:
-      window_open: true
-      heating_active: true
+      binary_sensor.example: true
     enforce:
-      service: climate.set_hvac_mode
-      target: climate.heating
-      data:
-        hvac_mode: "off"
+      service: light.turn_off
+      target: light.example
+      data: {}

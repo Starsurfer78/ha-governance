@@ -1,0 +1,11 @@
+#!/command/with-contenv bashio
+# ==============================================================================
+# Home Assistant Add-on: HA Governance
+# Runs the HA Governance service
+# ==============================================================================
+
+bashio::log.info "Starting HA Governance v0.1..."
+
+cd /app || bashio::exit.nok "Could not change to /app directory"
+
+exec python3 -u /app/main.py

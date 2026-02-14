@@ -1,0 +1,7 @@
+#!/command/with-contenv bashio
+# ==============================================================================
+# Home Assistant Add-on: HA Governance
+# Handles service shutdown
+# ==============================================================================
+
+bashio::log.info "HA Governance service stopped"
