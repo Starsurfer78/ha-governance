@@ -1,0 +1,244 @@
+🧠 JARVIS – MASTER TODO LIST (aktualisiert)
+🔵 PHASE 0 – Fundament sichern (Governance stabilisieren)
+Ziel:
+
+HA Governance als deterministische Sicherheitsbasis festziehen.
+
+TODO 0.1 – Policy-Design-Standards definieren
+
+ Namenskonvention für Policies
+
+ Priority-Konzept finalisieren
+
+ Trennung Safety / Komfort / Energie
+
+ YAML-Struktur dokumentieren
+
+TODO 0.2 – Kritische Safety-Policies implementieren
+
+ Water leak emergency
+
+ Heating + window open
+
+ Smoke / fire override
+
+ Main power emergency
+
+TODO 0.3 – Policy-Tests
+
+ Simulation für Trigger-Fälle
+
+ Loop-Protection validieren
+
+ Performance unter Last testen
+
+ Logging prüfen
+
+🔵 PHASE 1 – Orchestrator Core (ohne LLM)
+Ziel:
+
+Deterministische Entscheidungsinstanz.
+
+TODO 1.1 – Grundstruktur implementieren
+
+ FastAPI Core
+
+ Context Builder v1
+
+ Action Executor
+
+ Logging System
+
+TODO 1.2 – Plan Validator (KRITISCH!)
+
+ Schema-Validation
+
+ Tool-Whitelist
+
+ Param-Validation
+
+ Sequence Validation
+
+ Conflict Detection
+
+ Confirmation-Handling
+
+TODO 1.3 – Decision Engine
+
+ Role-based decisions
+
+ Quiet hours handling
+
+ Interrupt handling
+
+ Priority handling
+
+TODO 1.4 – Explainability
+
+ Decision Record Model
+
+ Action Log
+
+ “Warum?”-Antwort
+
+🔵 PHASE 2 – Voice Interface (ein Raum)
+Ziel:
+
+Voice als Input-Layer.
+
+TODO 2.1 – Hardware Setup
+
+ USB Konferenz-Mikro konfigurieren
+
+ Audio Test
+
+ Lautsprecher Routing
+
+TODO 2.2 – STT
+
+ Whisper Integration
+
+ Language = Deutsch
+
+ Latenz testen
+
+TODO 2.3 – TTS
+
+ Mimic3 oder Piper
+
+ Lautstärke-Handling
+
+ Echo-Vermeidung
+
+TODO 2.4 – Wake Word
+
+ Porcupine Integration
+
+ Dauerbetrieb testen
+
+ CPU-Last prüfen
+
+🔵 PHASE 3 – LLM als Tool (optional)
+Ziel:
+
+Intent Parsing & Plan-Vorschläge.
+
+TODO 3.1 – LLM-Interface definieren
+
+ Strict JSON Contract
+
+ Tool-Whitelist-Template
+
+ Context-Minimierung
+
+TODO 3.2 – Fallback-Strategie
+
+ Retry-Mechanismus
+
+ Rule-based Fallback
+
+ Invalid JSON Handling
+
+TODO 3.3 – Logging
+
+ Prompt-Hash speichern
+
+ LLM-Response speichern
+
+ Validator-Ergebnis loggen
+
+🔵 PHASE 4 – Goal Engine v1 (deterministisch)
+Ziel:
+
+Messbare Optimierung statt reaktiver Befehle.
+
+TODO 4.1 – Score-Definitionen
+
+ Comfort Score
+
+ Energy Score
+
+ Safety Score
+
+TODO 4.2 – Simulation Engine
+
+ State Clone
+
+ Action Simulation
+
+ Score Evaluation
+
+TODO 4.3 – Optimierungslogik
+
+ Max Iteration Count
+
+ Blocked Action Tracking
+
+ Hard Constraints Enforcement
+
+TODO 4.4 – Governance Integration
+
+ Blocked Action Feedback
+
+ Alternative-Plan-Bewertung
+
+🔵 PHASE 5 – Multi-Room & Skalierung
+TODO 5.1 – Context pro Raum
+
+ Room-Awareness
+
+ User-Location Tracking
+
+TODO 5.2 – Performance
+
+ Redis State Management
+
+ Event Queue
+
+ Async Optimierung
+
+🔵 PHASE 6 – Observability & Debugging
+TODO 6.1 – Metrics
+
+ Policy Trigger Count
+
+ Action Success Rate
+
+ LLM Error Rate
+
+TODO 6.2 – Debug Dashboard
+
+ Current Goals
+
+ Active Tasks
+
+ Policy Overrides
+
+🔵 PHASE 7 – Stabilisierung & Evolution
+TODO 7.1 – Policy Growth Management
+
+ Policy-Gruppierung
+
+ Test-Szenarien
+
+ Simulation-Modus
+
+TODO 7.2 – User Preference Management
+
+ Confirmed Preferences Only
+
+ Editable Memory
+
+ Reset-Funktion
+
+🔴 Kritischer Pfad (nicht verhandelbar)
+
+HA Governance stabil
+
+Plan Validator vollständig
+
+Deterministische Decision Engine
+
+Logging & Explainability
+
+Erst danach LLM

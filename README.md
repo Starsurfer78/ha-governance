@@ -98,5 +98,10 @@ policies:
 - v0.1.1: HACS‑Metadaten hinzugefügt
 - v0.1.0: Initiale Version
 
+## Dokumentation
+- Dokumentations‑Index: [INDEX.md](file:///e:/TRAE/ha-governance/docs/INDEX.md)
+- Governance‑Grundlagen: [README_GOVERNANCE.md](file:///e:/TRAE/ha-governance/docs/README_GOVERNANCE.md)
+- Architektur‑Anleitung: [README_Anleitung.md](file:///e:/TRAE/ha-governance/docs/README_Anleitung.md)
+
 ## Lizenz
 MIT
