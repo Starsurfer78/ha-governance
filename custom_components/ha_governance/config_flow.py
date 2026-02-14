@@ -4,7 +4,7 @@ from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from .const import DOMAIN, CONF_COOLDOWN_SECONDS, CONF_MODE_ENTITY, CONF_POLICY_PATH, DEFAULT_COOLDOWN_SECONDS, DEFAULT_POLICY_PATH
 
-class HaGovernanceConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input: Dict[str, Any] | None = None):
         if user_input is not None:
             return self.async_create_entry(title="HA Governance", data={}, options=user_input)
@@ -32,7 +32,3 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             vol.Optional(CONF_POLICY_PATH, default=data.get(CONF_POLICY_PATH, DEFAULT_POLICY_PATH)): str,
         })
         return self.async_show_form(step_id="init", data_schema=schema)
-
-    @staticmethod
-    def async_get_options_flow(config_entry: config_entries.ConfigEntry):
-        return OptionsFlowHandler(config_entry)
