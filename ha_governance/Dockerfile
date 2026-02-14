@@ -12,5 +12,6 @@ RUN pip3 install --no-cache-dir --break-system-packages -r /tmp/requirements.txt
 
 COPY app/ /app
 COPY policies.yaml /data/policies.yaml
+COPY run.sh /run.sh
 
-CMD ["python3", "/app/main.py"]
+RUN chmod +x /run.sh
