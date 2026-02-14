@@ -92,6 +92,7 @@ policies:
 - Änderungen wirken nicht: Nach Policy‑Anpassungen HA neu starten oder kurz warten; bei Pfad‑Änderung im UI erfolgt Reload.
 
 ## Changelog (kurz)
+- v0.1.6: Neuer when‑Matcher mit Operatoren und Attribut‑Support
 - v0.1.4: Default‑Pfad unter `custom_components`, Fallback und README‑Update
 - v0.1.3: UI‑Config repariert (ConfigFlow), manifest config_flow aktiv
 - v0.1.2: manifest ergänzt (config_flow), HACS‑Kompatibilität
