@@ -1,9 +1,0 @@
-policies:
-  - name: example_policy
-    priority: 100
-    when:
-      binary_sensor.example: true
-    enforce:
-      service: light.turn_off
-      target: light.example
-      data: {}

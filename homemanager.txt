@@ -1,0 +1,225 @@
+📄 PRD – HA Governance v0.1 (HACS Custom Integration)
+1. Ziel
+
+Ein deterministischer, transparenter Policy-Governor für Home Assistant, der:
+
+HA-States auswertet
+
+definierte Policies prüft
+
+deterministisch Services ausführt
+
+Loop-Protection besitzt
+
+nachvollziehbar loggt
+
+ohne Docker läuft
+
+über HACS installierbar ist
+
+Keine Zieloptimierung.
+Keine KI.
+Keine Selbstlernlogik.
+
+Nur v0.1: Stabiler Policy-Enforcer.
+
+2. Installationsform
+
+HACS → Custom Integration
+
+Ablage unter:
+
+/config/custom_components/ha_governance/
+
+3. Architektur (HA-native)
+Komponenten
+custom_components/ha_governance/
+│
+├── __init__.py
+├── manifest.json
+├── const.py
+├── coordinator.py
+├── policy_engine.py
+├── enforcement.py
+├── services.yaml
+└── config_flow.py
+
+4. Funktionaler Scope v0.1
+4.1 State Evaluation
+
+Zugriff auf HA State Machine (kein WebSocket nötig)
+
+Nutzung von hass.states.get()
+
+Event Listener auf:
+
+state_changed
+
+homeassistant_started
+
+4.2 Policy Definition
+
+Policy-Datei unter:
+
+/config/ha_governance/policies.yaml
+
+
+Beispiel:
+
+policies:
+  - name: no_heating_with_window_open
+    priority: 100
+    when:
+      binary_sensor.window: "on"
+      climate.living_room: "heat"
+    enforce:
+      service: climate.set_hvac_mode
+      target:
+        entity_id: climate.living_room
+      data:
+        hvac_mode: "off"
+
+4.3 Deterministische Engine
+
+Regeln:
+
+Höchste Priority gewinnt
+
+Erste passende Policy wird ausgeführt
+
+Kein Parallel-Enforcement
+
+Globaler Async-Lock
+
+4.4 Loop Protection
+
+Cooldown je Policy:
+
+Default: 10 Sekunden
+
+Konfigurierbar
+
+Speicherung im Memory
+
+4.5 Mode Awareness (Hybrid Mode v0.1)
+
+Optional:
+
+input_select.house_mode_override
+
+Fallback: Derived Mode (simple)
+
+Reihenfolge:
+
+override > night > away > home
+
+4.6 Logging
+
+Strukturiert:
+
+[ha_governance] POLICY_TRIGGERED
+[ha_governance] ENFORCEMENT_EXECUTED
+[ha_governance] LOOP_PREVENTED
+
+
+Keine JSON-Log-Payloads notwendig.
+
+5. Nicht enthalten in v0.1
+
+❌ Goal Optimization
+❌ Multi-Step Planning
+❌ Simulation
+❌ Metrics Dashboard
+❌ Auto Policy Reload
+❌ Learning
+❌ REST API
+
+6. Konfiguration (Config Flow)
+
+Integration soll:
+
+über UI konfigurierbar sein
+
+optional:
+
+cooldown_seconds
+
+mode_entity
+
+policy_path
+
+7. manifest.json
+{
+  "domain": "ha_governance",
+  "name": "HA Governance",
+  "version": "0.1.0",
+  "documentation": "https://github.com/Starsurfer78/ha-governance",
+  "requirements": [],
+  "codeowners": ["@Starsurfer78"],
+  "iot_class": "local_push"
+}
+
+8. Runtime-Modell
+
+Startup:
+
+HA startet
+
+Integration lädt policies.yaml
+
+Event Listener registrieren
+
+State Change → evaluate()
+
+Enforcement via hass.services.async_call()
+
+Kein eigener Event Loop.
+Keine Threads.
+
+Alles HA-native async.
+
+9. Definition of Done v0.1
+
+Integration ist fertig wenn:
+
+Über HACS installierbar
+
+Policies werden geladen
+
+state_changed Events triggern Evaluation
+
+Enforcement funktioniert
+
+Loop Protection greift
+
+Kein Memory Leak
+
+Kein HA Blocking
+
+10. Technische Prinzipien
+
+Reines async
+
+Kein blocking I/O
+
+Keine while True Loops
+
+Kein polling
+
+Kein WebSocket Client
+
+Kein eigener Scheduler
+
+11. Zielbild v0.1
+
+Das System ist:
+
+Stabil
+
+Deterministisch
+
+Transparent
+
+Minimal
+
+Installierbar in < 60 Sekunden über HACS
