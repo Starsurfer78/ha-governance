@@ -1,9 +1,16 @@
 name: HA Governance
-version: "0.1.0"
+version: "0.1.1"
 slug: ha_governance
 description: Deterministic Policy Governor for Home Assistant
 startup: services
 boot: auto
+
+arch:
+  - amd64
+  - aarch64
+  - armv7
+  - armhf
+  - i386
 
 homeassistant_api: true
 hassio_api: true
@@ -14,3 +21,4 @@ options:
 
 schema:
   ha_token: str
+
