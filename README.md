@@ -8,7 +8,7 @@ Deterministischer Policy-Governor für Home Assistant. Evaluierte Zustände füh
 
 ## Features
 - HA‑native async, keine eigenen Threads/Loops
-- Policies aus `/config/ha_governance/policies.yaml`
+- Policies aus `/config/custom_components/ha_governance/policies.yaml` (Default)
 - Prioritätsbasierte, deterministische Evaluation (höchste Priority gewinnt)
 - Enforcement via `hass.services.async_call`
 - Cooldown‑Loop‑Protection (Default 10 s), konfigurierbar
@@ -34,10 +34,11 @@ Deterministischer Policy-Governor für Home Assistant. Evaluierte Zustände füh
 Über den Config‑Flow:
 - `cooldown_seconds` (Default: 10)
 - `mode_entity` (optional)
-- `policy_path` (Default: `/config/ha_governance/policies.yaml`)
+- `policy_path` (Default: `/config/custom_components/ha_governance/policies.yaml`)
 
 ## Policies
-Pfad: `/config/ha_governance/policies.yaml`
+Pfad (Default): `/config/custom_components/ha_governance/policies.yaml`
+Fallback: `/config/ha_governance/policies.yaml` (falls vorhanden)
 
 Beispiel:
 ```yaml

@@ -1,0 +1,9 @@
+policies:
+  - name: example_policy
+    priority: 10
+    when:
+      input_boolean.example: "on"
+    enforce:
+      service: homeassistant.turn_off
+      target:
+        entity_id: input_boolean.example

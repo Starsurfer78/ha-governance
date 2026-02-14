@@ -34,8 +34,19 @@ async def load_policies(hass: HomeAssistant, path: Optional[str]) -> List[Dict[s
     _LOGGER = logging.getLogger(__name__)
     exists = await hass.async_add_executor_job(os.path.exists, target)
     if not exists:
-        _LOGGER.warning(f"Policy file not found: {target}. Using empty policy list.")
-        return []
+        fallback_paths = [
+            "/config/custom_components/ha_governance/policies.yaml",
+            "/config/ha_governance/policies.yaml",
+        ]
+        for fp in fallback_paths:
+            if await hass.async_add_executor_job(os.path.exists, fp):
+                _LOGGER.info(f"Using fallback policy file: {fp}")
+                target = fp
+                exists = True
+                break
+        if not exists:
+            _LOGGER.warning(f"Policy file not found: {target}. Using empty policy list.")
+            return []
     try:
         data = await hass.async_add_executor_job(_load_yaml, target)
         items = data.get("policies", []) if isinstance(data, dict) else []
