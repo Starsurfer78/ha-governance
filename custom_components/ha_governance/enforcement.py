@@ -3,6 +3,8 @@ from typing import Any, Dict, Tuple, Optional, Set
 import asyncio
 import logging
 from homeassistant.core import HomeAssistant, Context
+from homeassistant.helpers.event import async_track_time_interval
+from datetime import timedelta
 from .const import CONF_COOLDOWN_SECONDS
 
 def _split_service(s: str) -> Tuple[str, str]:
@@ -65,11 +67,9 @@ async def apply(hass: HomeAssistant, policy: Dict[str, Any], options: Dict[str, 
     hass.async_create_task(_cleanup_context())
 
 async def setup_periodic_cleanup(hass: HomeAssistant) -> None:
-    async def _cleanup_task():
-        while True:
-            await asyncio.sleep(300)
-            async with _COOLDOWN_LOCK:
-                size = len(_ENFORCEMENT_CONTEXTS)
-                _ENFORCEMENT_CONTEXTS.clear()
-                _LOGGER.debug(f"[ha_governance] Periodic context cleanup: cleared {size} contexts")
-    hass.async_create_background_task(_cleanup_task(), "ha_governance_periodic_cleanup")
+    async def _cleanup_task(now):
+        async with _COOLDOWN_LOCK:
+            size = len(_ENFORCEMENT_CONTEXTS)
+            _ENFORCEMENT_CONTEXTS.clear()
+            _LOGGER.debug(f"[ha_governance] Periodic context cleanup: cleared {size} contexts")
+    async_track_time_interval(hass, _cleanup_task, timedelta(minutes=5))
