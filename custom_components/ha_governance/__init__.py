@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from typing import Any, Dict, Optional
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
@@ -9,6 +10,7 @@ from .enforcement import apply as apply_enforcement
 from .config_flow import OptionsFlowHandler
 
 _LOGGER = logging.getLogger(__name__)
+_EVENT_LOCK = asyncio.Lock()
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
@@ -16,10 +18,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         CONF_POLICY_PATH: entry.options.get(CONF_POLICY_PATH, DEFAULT_POLICY_PATH),
         CONF_COOLDOWN_SECONDS: entry.options.get(CONF_COOLDOWN_SECONDS, DEFAULT_COOLDOWN_SECONDS),
     }
+    await _reload_policies(hass)
+    await _register_listeners(hass)
     async def _on_started(event) -> None:
         await _reload_policies(hass)
-        await _register_listeners(hass)
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, _on_started)
+    entry.async_on_unload(entry.add_update_listener(async_reload_entry))
     return True
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -33,13 +37,17 @@ async def _reload_policies(hass: HomeAssistant) -> None:
 
 async def _register_listeners(hass: HomeAssistant) -> None:
     async def _handle_event(event) -> None:
-        policies = hass.data[DOMAIN].get("policies", [])
-        if not policies:
-            return
-        p = evaluate(hass, policies)
-        if p:
-            await apply_enforcement(hass, p, hass.data[DOMAIN]["options"])
+        async with _EVENT_LOCK:
+            policies = hass.data[DOMAIN].get("policies", [])
+            if not policies:
+                return
+            p = evaluate(hass, policies)
+            if p:
+                await apply_enforcement(hass, p, hass.data[DOMAIN]["options"])
     hass.bus.async_listen(EVENT_STATE_CHANGED, _handle_event)
 
 def async_get_options_flow(config_entry: ConfigEntry):
     return OptionsFlowHandler(config_entry)
+
+async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    await hass.config_entries.async_reload(entry.entry_id)

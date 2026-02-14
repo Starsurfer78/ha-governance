@@ -1,4 +1,6 @@
 import asyncio
+import logging
+import os
 from typing import Any, Dict, List, Optional, Tuple
 from homeassistant.core import HomeAssistant, State
 from .const import DEFAULT_POLICY_PATH
@@ -29,9 +31,19 @@ def _load_yaml(path: str) -> Dict[str, Any]:
 
 async def load_policies(hass: HomeAssistant, path: Optional[str]) -> List[Dict[str, Any]]:
     target = path or DEFAULT_POLICY_PATH
-    data = await hass.async_add_executor_job(_load_yaml, target)
-    items = data.get("policies", []) if isinstance(data, dict) else []
-    return _sort_policies(items)
+    _LOGGER = logging.getLogger(__name__)
+    exists = await hass.async_add_executor_job(os.path.exists, target)
+    if not exists:
+        _LOGGER.warning(f"Policy file not found: {target}. Using empty policy list.")
+        return []
+    try:
+        data = await hass.async_add_executor_job(_load_yaml, target)
+        items = data.get("policies", []) if isinstance(data, dict) else []
+        _LOGGER.info(f"Loaded {len(items)} policies from {target}")
+        return _sort_policies(items)
+    except Exception as e:
+        _LOGGER.error(f"Error loading policies from {target}: {e}")
+        return []
 
 def evaluate(hass: HomeAssistant, policies: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     for p in policies:

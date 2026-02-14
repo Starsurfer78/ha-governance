@@ -1,5 +1,7 @@
 from time import monotonic
 from typing import Any, Dict, Tuple
+import asyncio
+import logging
 from homeassistant.core import HomeAssistant
 from .const import CONF_COOLDOWN_SECONDS
 
@@ -20,11 +22,15 @@ def _cooldown_ok(hass: HomeAssistant, policy: Dict[str, Any], cooldown_seconds: 
     cd[key] = _now()
     return True
 
+_LOGGER = logging.getLogger(__name__)
+_COOLDOWN_LOCK = asyncio.Lock()
+
 async def apply(hass: HomeAssistant, policy: Dict[str, Any], options: Dict[str, Any]) -> None:
     cooldown = int(options.get(CONF_COOLDOWN_SECONDS, 10))
-    if not _cooldown_ok(hass, policy, cooldown):
-        hass.logger.info("[ha_governance] LOOP_PREVENTED")
-        return
+    async with _COOLDOWN_LOCK:
+        if not _cooldown_ok(hass, policy, cooldown):
+            _LOGGER.info("[ha_governance] LOOP_PREVENTED")
+            return
     enforce = policy.get("enforce", {})
     svc = enforce.get("service", "")
     tgt = enforce.get("target", {})
@@ -32,6 +38,6 @@ async def apply(hass: HomeAssistant, policy: Dict[str, Any], options: Dict[str, 
     if not svc:
         return
     domain, name = _split_service(svc)
-    hass.logger.info("[ha_governance] POLICY_TRIGGERED")
+    _LOGGER.info("[ha_governance] POLICY_TRIGGERED")
     await hass.services.async_call(domain, name, dat, target=tgt)
-    hass.logger.info("[ha_governance] ENFORCEMENT_EXECUTED")
+    _LOGGER.info("[ha_governance] ENFORCEMENT_EXECUTED")
