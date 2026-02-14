@@ -1,7 +1,0 @@
-#!/usr/bin/with-contenv bash
-set -e
-
-echo "[HA Governance] Starting service..."
-
-cd /app
-exec python3 -u main.py
