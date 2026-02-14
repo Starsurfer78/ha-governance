@@ -67,7 +67,7 @@ async def apply(hass: HomeAssistant, policy: Dict[str, Any], options: Dict[str, 
 async def setup_periodic_cleanup(hass: HomeAssistant) -> None:
     async def _cleanup_task():
         while True:
-            await asyncio.sleep(3600)
+            await asyncio.sleep(300)
             async with _COOLDOWN_LOCK:
                 size = len(_ENFORCEMENT_CONTEXTS)
                 _ENFORCEMENT_CONTEXTS.clear()
