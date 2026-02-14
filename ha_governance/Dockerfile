@@ -1,5 +1,5 @@
 ARG BUILD_FROM
-FROM ghcr.io/home-assistant/base-addon:latest
+FROM ${BUILD_FROM}
 
 RUN apk add --no-cache python3 py3-pip
 
