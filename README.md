@@ -4,51 +4,51 @@
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Starsurfer78&repository=ha-governance&category=integration)
 [![Start Integration](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=ha_governance)
 
-Deterministischer Policy-Governor für Home Assistant. Evaluierte Zustände führen zu klar definierten Service-Calls mit Cooldown‑Loop‑Protection und transparentem Logging – komplett HA‑native, ohne Docker.
+## Worum geht es?
+- HA Governance ist eine schlanke Governance‑Schicht über deinen Automationen. Sie erzwingt „harte Regeln“ (Policies), die quer durch dein Smart Home gelten sollen – deterministisch, zentral und nachvollziehbar.
+- Typisch für Governance‑Regeln sind Sicherheits‑, Energie‑ und Konsistenzregeln, z. B. „Heizung aus, wenn Fenster offen“, „Kein Garagentor auf, wenn Alarm scharf“, „Schalte energieintensive Geräte in der Spitze ab“.
+- Statt Logik über viele Automationen zu verteilen, definierst du diese Regeln einmalig in YAML (Policies). Die Integration prüft bei Zustandsänderungen, ob eine Policy greift, und führt dann genau einen Service‑Call aus – mit klarer Priorität und Schutz vor Loops.
+
+## Warum nicht einfach Automationen?
+- Zentrale Regeln: Policies liegen an einem Ort und sind leicht auditierbar.
+- Deterministische Konfliktauflösung: Höchste Priority gewinnt, erste passende Policy wird ausgeführt.
+- Robustheit: Schutz gegen Endlos‑Schleifen (Cooldown), Ereignisse werden seriell verarbeitet.
+- Transparenz: Einheitliche Logging‑Tags, klare Ausführungspfade.
+
+## Was macht die Integration genau?
+- Lauscht HA‑Events (`state_changed`, `homeassistant_started`) und lädt/prüft deine Policies.
+- Bewertet Bedingungen (`when`) gegen aktuelle Entity‑States.
+- Führt den definierten Enforcement‑Service aus (z. B. `climate.set_hvac_mode`) für die erste passende Policy mit der höchsten Priority.
+- Verhindert Schleifen (Cooldown, Default 10 s) und parallele Ausführungen (Event‑Lock).
 
 ## Features
-- HA‑native async, keine eigenen Threads/Loops
-- Policies aus `/config/custom_components/ha_governance/policies.yaml` (Default)
-- Prioritätsbasierte, deterministische Evaluation (höchste Priority gewinnt)
+- HA‑native async, kein eigener Scheduler, keine Neben‑Threads
+- YAML‑Policies in `/config/custom_components/ha_governance/policies.yaml` (Default)  
+  Fallback: `/config/ha_governance/policies.yaml` (falls vorhanden)
+- Prioritätsbasierte, deterministische Evaluation
 - Enforcement via `hass.services.async_call`
 - Cooldown‑Loop‑Protection (Default 10 s), konfigurierbar
-- Logging‑Tags: `[ha_governance] POLICY_TRIGGERED`, `ENFORCEMENT_EXECUTED`, `LOOP_PREVENTED`
-
-## Anforderungen
-- Home Assistant (aktueller Stable)
-- HACS (für Installation als Custom Integration) oder manuell als `custom_components`
+- Transparente Logs: `[ha_governance] POLICY_TRIGGERED`, `ENFORCEMENT_EXECUTED`, `LOOP_PREVENTED`
 
 ## Installation
-### Über HACS (empfohlen)
-1. Repository in HACS als Custom Repository hinzufügen
-2. Integration „HA Governance“ installieren
-3. In Home Assistant die Integration hinzufügen und konfigurieren
+- Über HACS (empfohlen): Repository hinzufügen, Integration installieren, in HA hinzufügen
+- Manuell: Ordner `custom_components/ha_governance` nach `/config/custom_components/` kopieren, HA neu starten
 
-### Manuell
-1. Ordner `custom_components/ha_governance` in dein HA‑Config‑Verzeichnis kopieren  
-   Pfad: `/config/custom_components/ha_governance/`
-2. Home Assistant neu starten
-3. Integration über UI hinzufügen
-
-## Konfiguration
-Über den Config‑Flow:
+## Konfiguration (UI)
 - `cooldown_seconds` (Default: 10)
-- `mode_entity` (optional)
+- `mode_entity` (optional; reserviert für zukünftige Modi/Schalter)
 - `policy_path` (Default: `/config/custom_components/ha_governance/policies.yaml`)
+- Änderungen im UI triggern automatisches Reload der Policies
 
-## Policies
-Pfad (Default): `/config/custom_components/ha_governance/policies.yaml`
-Fallback: `/config/ha_governance/policies.yaml` (falls vorhanden)
-
-Beispiel:
+## Policy‑Format (YAML)
 ```yaml
 policies:
-  - name: no_heating_with_window_open
-    priority: 100
-    when:
+  - name: <eindeutiger_name>
+    priority: <integer>         # höher = wichtiger
+    when:                       # Map: entity_id -> erwarteter State (String)
       binary_sensor.window: "on"
       climate.living_room: "heat"
-    enforce:
+    enforce:                    # auszuführender Service‑Call
       service: climate.set_hvac_mode
       target:
         entity_id: climate.living_room
@@ -56,16 +56,43 @@ policies:
         hvac_mode: "off"
 ```
 
-## Funktionsweise
-- Beim Start lädt die Integration die `policies.yaml`
-- Listener reagieren auf `homeassistant_started` und `state_changed`
-- Bei State‑Änderungen wird die höchste passende Policy ermittelt und ausgeführt
-- Cooldown verhindert Enforcement‑Schleifen pro Policy
+## Beispiele
+- Heizung aus bei offenem Fenster  
+  Siehe oben – verhindert Energieverschwendung
+- Nachtmodus dimmt Licht
+```yaml
+policies:
+  - name: night_mode_dim_lights
+    priority: 50
+    when:
+      sensor.local_time_period: "night"
+      light.living_room: "on"
+    enforce:
+      service: light.turn_on
+      target:
+        entity_id: light.living_room
+      data:
+        brightness_pct: 20
+```
 
-## Hinweise
-- Keine WebSocket‑Clients, kein eigener Scheduler, kein Polling
-- Rein HA‑native Nutzung von `hass.states.get()` und Events
-- `homemanager.txt` wird nicht committed (siehe `.gitignore`)
+## Betrieb und Verhalten
+- Beim HA‑Start werden Policies geladen, bei State‑Änderungen evaluiert.
+- Ersttreffer‑Prinzip: höchste Priorität gewinnt, es wird nur eine Policy ausgeführt.
+- Cooldown schützt pro Policy vor wiederholter Ausführung in kurzer Zeit.
+- Event‑Verarbeitung ist serialisiert, um parallele Enforcements zu vermeiden.
+
+## Troubleshooting
+- „Policy file not found“ im Log:  
+  Datei unter `/config/custom_components/ha_governance/policies.yaml` anlegen oder im UI `policy_path` setzen.
+- UI‑Flow fehlt: Version ≥ v0.1.3 installieren, HA neu starten.
+- Änderungen wirken nicht: Nach Policy‑Anpassungen HA neu starten oder kurz warten; bei Pfad‑Änderung im UI erfolgt Reload.
+
+## Changelog (kurz)
+- v0.1.4: Default‑Pfad unter `custom_components`, Fallback und README‑Update
+- v0.1.3: UI‑Config repariert (ConfigFlow), manifest config_flow aktiv
+- v0.1.2: manifest ergänzt (config_flow), HACS‑Kompatibilität
+- v0.1.1: HACS‑Metadaten hinzugefügt
+- v0.1.0: Initiale Version
 
 ## Lizenz
-MIT (siehe GitHub‑Repository)
+MIT
