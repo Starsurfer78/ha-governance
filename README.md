@@ -23,7 +23,7 @@
 
 ## Features
 - HA‑native async, kein eigener Scheduler, keine Neben‑Threads
-- YAML‑Policies in `/config/ha_governance/policies.yaml` (Default, update‑sicher)
+- YAML‑Policies in `/config/policies.yaml` (Default, update‑sicher)
 - Prioritätsbasierte, deterministische Evaluation
 - Enforcement via `hass.services.async_call`
 - Cooldown‑Loop‑Protection (Default 10 s), konfigurierbar
@@ -36,7 +36,7 @@
 ## Konfiguration (UI)
 - `cooldown_seconds` (Default: 10)
 - `mode_entity` (optional; reserviert für zukünftige Modi/Schalter)
-- `policy_path` (Default: `/config/ha_governance/policies.yaml`)
+- `policy_path` (Default: `/config/policies.yaml`)
 - Änderungen im UI triggern automatisches Reload der Policies
 
 ## Policy‑Format (YAML)
@@ -86,7 +86,7 @@ policies:
 
 ## Troubleshooting
 - „Policy file not found“ im Log:  
-  Datei unter `/config/ha_governance/policies.yaml` anlegen oder im UI `policy_path` setzen.
+-  Datei unter `/config/policies.yaml` anlegen oder im UI `policy_path` setzen.
 - UI‑Flow fehlt: Version ≥ v0.1.3 installieren, HA neu starten.
 - Änderungen wirken nicht: Nach Policy‑Anpassungen HA neu starten oder kurz warten; bei Pfad‑Änderung im UI erfolgt Reload.
 

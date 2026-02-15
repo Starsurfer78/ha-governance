@@ -86,9 +86,7 @@ def _compute_file_hash(path: str) -> str:
 def get_policy_path(hass: HomeAssistant, path: Optional[str] = None) -> str:
     if path:
         return path
-    config_dir = hass.config.path("ha_governance")
-    os.makedirs(config_dir, exist_ok=True)
-    return os.path.join(config_dir, "policies.yaml")
+    return hass.config.path("policies.yaml")
 
 def ensure_policy_file_exists(hass: HomeAssistant, path: Optional[str] = None) -> str:
     target = get_policy_path(hass, path)
@@ -107,11 +105,17 @@ async def load_policies(hass: HomeAssistant, path: Optional[str]) -> List[Dict[s
     target = get_policy_path(hass, path)
     exists = await hass.async_add_executor_job(os.path.exists, target)
     if not exists:
-        legacy_path = "/config/custom_components/ha_governance/policies.yaml"
-        if await hass.async_add_executor_job(os.path.exists, legacy_path):
-            _LOGGER.warning(f"Found legacy policy file at {legacy_path}. Please move it to {target} to make it update-safe.")
-            target = legacy_path
-        else:
+        legacy_paths = [
+            "/config/ha_governance/policies.yaml",
+            "/config/custom_components/ha_governance/policies.yaml",
+        ]
+        for legacy_path in legacy_paths:
+            if await hass.async_add_executor_job(os.path.exists, legacy_path):
+                _LOGGER.warning(f"Found legacy policy file at {legacy_path}. Please move it to {target} to make it update-safe.")
+                target = legacy_path
+                exists = True
+                break
+        if not exists:
             _LOGGER.error(f"Policy file not found at {target} and no legacy file found. Governance disabled (no policies loaded).")
             return []
     try:
