@@ -69,7 +69,10 @@ def _match_when(hass: HomeAssistant, when: Dict[str, Any]) -> bool:
     return True
 
 def _sort_policies(policies: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    return sorted(policies, key=lambda p: int(p.get("priority", 0)), reverse=True)
+    return sorted(
+        policies,
+        key=lambda p: (-int(p.get("priority", 0)), str(p.get("name", ""))),
+    )
 
 def _load_yaml(path: str) -> Dict[str, Any]:
     import yaml
@@ -135,11 +138,22 @@ async def load_policies(hass: HomeAssistant, path: Optional[str]) -> List[Dict[s
         _LOGGER.error(f"Error loading policies from {target}: {e}")
         return []
 
-def evaluate(hass: HomeAssistant, policies: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+def evaluate(hass: HomeAssistant, policies: List[Dict[str, Any]]) -> Tuple[Optional[Dict[str, Any]], List[Dict[str, Any]]]:
+    winner = None
+    evaluations: List[Dict[str, Any]] = []
     for p in policies:
         when = p.get("when", {})
-        if not isinstance(when, dict):
-            continue
-        if _match_when(hass, when):
-            return p
-    return None
+        matched = False
+        if isinstance(when, dict) and _match_when(hass, when):
+            matched = True
+            if winner is None:
+                winner = p
+        evaluations.append(
+            {
+                "name": str(p.get("name", "")),
+                "priority": int(p.get("priority", 0)),
+                "matched": matched,
+                "cooldown_blocked": False,
+            }
+        )
+    return winner, evaluations

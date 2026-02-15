@@ -7,3 +7,5 @@ DEFAULT_COOLDOWN_SECONDS = 10
 DEFAULT_POLICY_FILENAME = "policies.yaml"
 DEFAULT_POLICY_PATH = f"/config/{DEFAULT_POLICY_FILENAME}"
 DISPATCHER_POLICIES_UPDATED = "ha_governance_policies_updated"
+DISPATCHER_POLICY_EXECUTED = "ha_governance_policy_executed"
+DISPATCHER_DECISION_UPDATED = "ha_governance_decision_updated"
