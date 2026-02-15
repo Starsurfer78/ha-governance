@@ -104,6 +104,7 @@ policies:
 - Änderungen wirken nicht: Nach Policy‑Anpassungen HA neu starten oder kurz warten; bei Pfad‑Änderung im UI erfolgt Reload.
 
 ## Changelog (kurz)
+- v0.1.13: Event‑Filter auf relevante Entities und Deduplizierung identischer Decisions (LastDecision‑Sensor deutlich ruhiger)
 - v0.1.12: Startup‑Fix – Event‑Listener erst nach HA‑Start registriert; Debug‑Hinweise für fehlende Entities; Fehlerbehandlung im Event‑Handler; vereinheitlichter Logger
 - v0.1.11: Hotfix – Event‑Loop für LastDecision‑Sensor verhindert (`sensor.ha_governance_*` werden nicht mehr ausgewertet)
 - v0.1.10: Decision‑Audit‑Layer (Snapshot‑Hash, DecisionRecords, LastDecision‑Sensor), PolicyStats‑Meta‑Sensor

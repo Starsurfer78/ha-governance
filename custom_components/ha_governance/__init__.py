@@ -49,9 +49,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, ["sensor"])
     _setup_daily_stats_reset(hass)
     async def _on_started(event) -> None:
-        await _reload_policies(hass)
         await _register_listeners(hass)
-        _LOGGER.info("[ha_governance] Policies loaded and event listeners registered after HA startup")
+        _LOGGER.info("[ha_governance] Event listeners registered after HA startup")
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, _on_started)
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
     return True
@@ -68,6 +67,15 @@ async def _reload_policies(hass: HomeAssistant) -> None:
         path = options.get(CONF_POLICY_PATH, DEFAULT_POLICY_PATH)
         policies = await load_policies(hass, path)
         data["policies"] = tuple(policies)
+        relevant_entities = set()
+        for p in policies:
+            when = p.get("when", {})
+            if isinstance(when, dict):
+                for entity_path in when.keys():
+                    parts = str(entity_path).split(".")
+                    if len(parts) >= 2:
+                        relevant_entities.add(parts[0] + "." + parts[1])
+        data["relevant_entities"] = frozenset(relevant_entities)
         try:
             snapshot_hash = hashlib.sha256(
                 json.dumps(policies, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -97,63 +105,80 @@ def _setup_daily_stats_reset(hass: HomeAssistant) -> None:
 
 async def _register_listeners(hass: HomeAssistant) -> None:
     async def _handle_event(event) -> None:
-        async with _EVENT_LOCK:
-            policies = hass.data[DOMAIN].get("policies", [])
-            if not policies:
-                return
-            entity_id = None
-            try:
-                entity_id = event.data.get("entity_id")
-            except Exception:
+        try:
+            async with _EVENT_LOCK:
+                policies = hass.data[DOMAIN].get("policies", [])
+                if not policies:
+                    return
                 entity_id = None
-            if entity_id and entity_id.startswith("sensor.ha_governance_"):
-                return
-            if is_self_caused(getattr(event, "context", None)):
-                _LOGGER.debug("[ha_governance] Ignoring self-caused event")
-                return
-            winner, evaluations = evaluate(hass, list(policies))
-            result = None
-            if winner:
-                result = await apply_enforcement(
-                    hass,
-                    winner,
-                    hass.data[DOMAIN]["options"],
-                    getattr(event, "context", None),
-                )
-                if result == "skipped_cooldown":
-                    name = str(winner.get("name", ""))
-                    for e in evaluations:
-                        if e.get("name") == name and e.get("matched"):
-                            e["cooldown_blocked"] = True
-                            break
-            if winner is None and result is None:
-                return
-            data = hass.data[DOMAIN]
-            snapshot_hash = data.get("policy_snapshot_hash", "")
-            context_id = None
-            ctx = getattr(event, "context", None)
-            if ctx is not None:
                 try:
-                    context_id = ctx.id
+                    entity_id = event.data.get("entity_id")
                 except Exception:
-                    context_id = None
-            from homeassistant.util import dt as dt_util
+                    entity_id = None
+                if entity_id and entity_id.startswith("sensor.ha_governance_"):
+                    return
+                if is_self_caused(getattr(event, "context", None)):
+                    _LOGGER.debug("[ha_governance] Ignoring self-caused event")
+                    return
+                relevant = hass.data[DOMAIN].get("relevant_entities")
+                if entity_id and relevant and entity_id not in relevant:
+                    return
+                winner, evaluations = evaluate(hass, list(policies))
+                result = None
+                if winner:
+                    result = await apply_enforcement(
+                        hass,
+                        winner,
+                        hass.data[DOMAIN]["options"],
+                        getattr(event, "context", None),
+                    )
+                    if result == "skipped_cooldown":
+                        name = str(winner.get("name", ""))
+                        for e in evaluations:
+                            if e.get("name") == name and e.get("matched"):
+                                e["cooldown_blocked"] = True
+                                break
+                if winner is None and result is None:
+                    return
+                data = hass.data[DOMAIN]
+                snapshot_hash = data.get("policy_snapshot_hash", "")
+                context_id = None
+                last_decision = data.get("last_decision")
+                ctx = getattr(event, "context", None)
+                if ctx is not None:
+                    try:
+                        context_id = ctx.id
+                    except Exception:
+                        context_id = None
+                from homeassistant.util import dt as dt_util
 
-            decision = {
-                "timestamp": dt_util.utcnow().isoformat(),
-                "event_type": event.event_type,
-                "entity_id": entity_id,
-                "policy_snapshot_hash": snapshot_hash,
-                "evaluations": tuple(evaluations),
-                "final_policy": str(winner.get("name", "")) if winner else None,
-                "enforcement_result": result,
-                "context_id": context_id,
-            }
-            audit_log = data.get("audit_log")
-            if audit_log is not None:
-                audit_log.append(decision)
-            data["last_decision"] = decision
-            async_dispatcher_send(hass, DISPATCHER_DECISION_UPDATED)
+                final_policy_name = str(winner.get("name", "")) if winner else None
+                if last_decision is not None:
+                    if (
+                        last_decision.get("final_policy") == final_policy_name
+                        and last_decision.get("enforcement_result") == result
+                        and last_decision.get("event_type") == event.event_type
+                        and last_decision.get("entity_id") == entity_id
+                        and last_decision.get("policy_snapshot_hash") == snapshot_hash
+                    ):
+                        return
+                decision = {
+                    "timestamp": dt_util.utcnow().isoformat(),
+                    "event_type": event.event_type,
+                    "entity_id": entity_id,
+                    "policy_snapshot_hash": snapshot_hash,
+                    "evaluations": tuple(evaluations),
+                    "final_policy": final_policy_name,
+                    "enforcement_result": result,
+                    "context_id": context_id,
+                }
+                audit_log = data.get("audit_log")
+                if audit_log is not None:
+                    audit_log.append(decision)
+                data["last_decision"] = decision
+                async_dispatcher_send(hass, DISPATCHER_DECISION_UPDATED)
+        except Exception as e:
+            _LOGGER.error(f"[ha_governance] Error in event handler: {e}", exc_info=True)
     hass.bus.async_listen(EVENT_STATE_CHANGED, _handle_event)
 
 def async_get_options_flow(config_entry: ConfigEntry):
