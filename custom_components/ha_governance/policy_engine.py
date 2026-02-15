@@ -5,7 +5,7 @@ import operator
 import hashlib
 from typing import Any, Dict, List, Optional, Tuple
 from homeassistant.core import HomeAssistant, State
-from .const import DEFAULT_POLICY_PATH
+from .const import DEFAULT_POLICY_FILENAME
 
 def _split_service(s: str) -> Tuple[str, str]:
     parts = s.split(".")
@@ -86,7 +86,7 @@ def _compute_file_hash(path: str) -> str:
 def get_policy_path(hass: HomeAssistant, path: Optional[str] = None) -> str:
     if path:
         return path
-    return hass.config.path("policies.yaml")
+    return hass.config.path(DEFAULT_POLICY_FILENAME)
 
 def ensure_policy_file_exists(hass: HomeAssistant, path: Optional[str] = None) -> str:
     target = get_policy_path(hass, path)

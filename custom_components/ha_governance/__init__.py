@@ -4,7 +4,8 @@ from typing import Any, Dict, Optional
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EVENT_HOMEASSISTANT_START, EVENT_STATE_CHANGED
-from .const import DOMAIN, CONF_POLICY_PATH, CONF_COOLDOWN_SECONDS, DEFAULT_POLICY_PATH, DEFAULT_COOLDOWN_SECONDS
+from homeassistant.helpers.dispatcher import async_dispatcher_send
+from .const import DOMAIN, CONF_POLICY_PATH, CONF_COOLDOWN_SECONDS, DEFAULT_POLICY_PATH, DEFAULT_COOLDOWN_SECONDS, DISPATCHER_POLICIES_UPDATED
 from .policy_engine import load_policies, evaluate, ensure_policy_file_exists
 from .enforcement import apply as apply_enforcement, is_self_caused, setup_periodic_cleanup
 from .config_flow import OptionsFlowHandler
@@ -46,10 +47,10 @@ async def _reload_policies(hass: HomeAssistant) -> None:
     data["policies"] = policies
     entry = data.get("entry")
     if entry is not None:
-        hass.config_entries.async_update_entry(entry, title=f"HA Governance ({len(policies)})")
-    sensors = data.get("policy_sensors", [])
-    for sensor in sensors:
-        sensor.async_write_ha_state()
+        new_title = f"HA Governance ({len(policies)})"
+        if entry.title != new_title:
+            hass.config_entries.async_update_entry(entry, title=new_title)
+    async_dispatcher_send(hass, DISPATCHER_POLICIES_UPDATED)
 
 async def _register_listeners(hass: HomeAssistant) -> None:
     async def _handle_event(event) -> None:
