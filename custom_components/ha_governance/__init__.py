@@ -14,6 +14,7 @@ _EVENT_LOCK = asyncio.Lock()
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
+    hass.data[DOMAIN]["entry"] = entry
     hass.data[DOMAIN]["options"] = {
         CONF_POLICY_PATH: entry.options.get(CONF_POLICY_PATH, DEFAULT_POLICY_PATH),
         CONF_COOLDOWN_SECONDS: entry.options.get(CONF_COOLDOWN_SECONDS, DEFAULT_COOLDOWN_SECONDS),
@@ -26,6 +27,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await _reload_policies(hass)
     await _register_listeners(hass)
     await setup_periodic_cleanup(hass)
+    await hass.config_entries.async_forward_entry_setups(entry, ["sensor"])
     async def _on_started(event) -> None:
         await _reload_policies(hass)
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, _on_started)
@@ -33,13 +35,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    return True
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, ["sensor"])
+    return unload_ok
 
 async def _reload_policies(hass: HomeAssistant) -> None:
-    options = hass.data[DOMAIN]["options"]
+    data = hass.data[DOMAIN]
+    options = data["options"]
     path = options.get(CONF_POLICY_PATH, DEFAULT_POLICY_PATH)
     policies = await load_policies(hass, path)
-    hass.data[DOMAIN]["policies"] = policies
+    data["policies"] = policies
+    entry = data.get("entry")
+    if entry is not None:
+        hass.config_entries.async_update_entry(entry, title=f"HA Governance ({len(policies)})")
+    sensors = data.get("policy_sensors", [])
+    for sensor in sensors:
+        sensor.async_write_ha_state()
 
 async def _register_listeners(hass: HomeAssistant) -> None:
     async def _handle_event(event) -> None:
