@@ -1,12 +1,15 @@
 ---
-title: Dokumentations-Index
+title: Documentation Index
 ---
-Dokumentations-Index
+Documentation Index
 
-- Grundlagen und Designprinzipien: [README_GOVERNANCE.md](README_GOVERNANCE.md)
-- Raum- und Policy-Architektur: [README_Anleitung.md](README_Anleitung.md)
-- Projekt-Roadmap: [TODO.prd](../TODO.prd)
+- Fundamentals and design principles: [README_GOVERNANCE.md](README_GOVERNANCE.md)
+- Room and policy architecture: [README_Anleitung.md](README_Anleitung.md)
+- Policy examples: [POLICY_EXAMPLES.md](POLICY_EXAMPLES.md)
+- House Mode setup: [HOUSE_MODE.md](HOUSE_MODE.md)
+- Troubleshooting: [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+- Project roadmap: [TODO.prd](../TODO.prd)
 
-Hinweise:
-- Dokumente sind versioniert mit dem Code.
-- Links aus der Haupt-README führen hierher.
+Notes:
+- Documents are versioned together with the code.
+- Links from the main README point here.

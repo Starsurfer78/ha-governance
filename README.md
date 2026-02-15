@@ -4,124 +4,209 @@
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Starsurfer78&repository=ha-governance&category=integration)
 [![Start Integration](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=ha_governance)
 
-## Worum geht es?
-- HA Governance ist eine schlanke Governance‑Schicht über deinen Automationen. Sie erzwingt „harte Regeln“ (Policies), die quer durch dein Smart Home gelten sollen – deterministisch, zentral und nachvollziehbar.
-- Typisch für Governance‑Regeln sind Sicherheits‑, Energie‑ und Konsistenzregeln, z. B. „Heizung aus, wenn Fenster offen“, „Kein Garagentor auf, wenn Alarm scharf“, „Schalte energieintensive Geräte in der Spitze ab“.
-- Statt Logik über viele Automationen zu verteilen, definierst du diese Regeln einmalig in YAML (Policies). Die Integration prüft bei Zustandsänderungen, ob eine Policy greift, und führt dann genau einen Service‑Call aus – mit klarer Priorität und Schutz vor Loops.
+Deterministic Policy Engine for Home Assistant.
 
-## Warum nicht einfach Automationen?
-- Zentrale Regeln: Policies liegen an einem Ort und sind leicht auditierbar.
-- Deterministische Konfliktauflösung: Höchste Priority gewinnt, erste passende Policy wird ausgeführt.
-- Robustheit: Schutz gegen Endlos‑Schleifen (Cooldown), Ereignisse werden seriell verarbeitet.
-- Transparenz: Einheitliche Logging‑Tags, klare Ausführungspfade.
+- Centralized rule enforcement
+- Conflict resolution by priority
+- Fully local, explainable and auditable
 
-## Was macht die Integration genau?
-- Lauscht HA‑Events (`state_changed`, `homeassistant_started`) und lädt/prüft deine Policies.
-- Bewertet Bedingungen (`when`) gegen aktuelle Entity‑States.
-- Führt den definierten Enforcement‑Service aus (z. B. `climate.set_hvac_mode`) für die erste passende Policy mit der höchsten Priority.
-- Verhindert Schleifen (Cooldown, Default 10 s) und parallele Ausführungen (Event‑Lock).
+Replace fragile automation chains with deterministic, priority-based rule enforcement.
 
-## Features
-- HA‑native async, kein eigener Scheduler, keine Neben‑Threads
-- YAML‑Policies in `/config/policies.yaml` (Default, update‑sicher)
-- Prioritätsbasierte, deterministische Evaluation
-- Enforcement via `hass.services.async_call`
-- Cooldown‑Loop‑Protection (Default 10 s), konfigurierbar
-- Transparente Logs: `[ha_governance] POLICY_TRIGGERED`, `ENFORCEMENT_EXECUTED`, `LOOP_PREVENTED`
+🧠 HA Governance
+
+Deterministic Control Layer for Home Assistant  
+Foundation for a Local “Jarvis”-Style System
+
+## What is HA Governance?
+
+HA Governance is a deterministic rule enforcement engine for Home Assistant.  
+It is designed as the control layer beneath a future local AI / Orchestrator system.
+
+Instead of:
+
+- scattered automations
+- race conditions
+- hidden state logic
+- event-order dependencies
+
+Governance provides:
+
+- Centralized rule evaluation
+- Priority-based conflict resolution
+- Snapshot-based determinism
+- Loop protection
+- Audit & explainability
+- Fully local execution
+
+## Why this exists
+
+If you want to build something like Jarvis, you cannot rely on:
+
+- fragile automation chains
+- implicit event ordering
+- non-deterministic behavior
+
+You need:
+
+- a stable policy layer
+- a predictable system core
+- a safety net below any AI logic
+
+HA Governance is that layer.
+
+AI (or any orchestrator) can suggest actions. Governance decides if they are allowed.
+
+## System architecture
+
+Voice Interface (future)  
+        ↓  
+Orchestrator (future)  
+        ↓  
+HA Governance ← this project  
+        ↓  
+Home Assistant Core
+
+Governance acts as:
+
+- Policy validator
+- Enforcement engine
+- Safety boundary
+- Deterministic rule resolver
+
+## Example policy
+
+```yaml
+policies:
+  - name: heating_off_if_window_open
+    priority: 100
+    when:
+      binary_sensor.window_livingroom: "on"
+      climate.heating: "heat"
+    enforce:
+      service: climate.turn_off
+      target:
+        entity_id: climate.heating
+```
+
+Regardless of:
+
+- automation order
+- AI suggestions
+- manual interaction
+
+this invariant is always enforced.
+
+## Deterministic by design
+
+HA Governance guarantees:
+
+- Immutable policy snapshots
+- Priority → name stable sorting
+- Serialized event processing
+- Cooldown-based loop protection
+- Context-aware self-event detection
+- Deduplicated decisions
+- Relevant-entity event filtering
+
+Given identical system state and policy snapshot, the same rule will always win.
 
 ## Installation
-- Über HACS (empfohlen): Repository hinzufügen, Integration installieren, in HA hinzufügen
-- Manuell: Ordner `custom_components/ha_governance` nach `/config/custom_components/` kopieren, HA neu starten
 
-## Konfiguration (UI)
-- `cooldown_seconds` (Default: 10)
-- `mode_entity` (optional; reserviert für zukünftige Modi/Schalter)
-- `policy_path` (Default: `/config/policies.yaml`)
-- Änderungen im UI triggern automatisches Reload der Policies
+### Option 1 – Manual installation
 
-## Policy‑Format (YAML)
+- Copy the `ha_governance` folder into:
+  - `/config/custom_components/`
+- Restart Home Assistant
+- Go to:
+  - Settings → Devices & Services → Add Integration
+- Search for:
+  - `HA Governance`
+- Configure the policy file path (default: `/config/policies.yaml`)
+
+### Option 2 – HACS (if published)
+
+- Add custom repository (Integration type)
+- Install HA Governance
+- Restart Home Assistant
+- Add integration via Settings → Devices & Services
+
+## Policy file location
+
+- Default path: `/config/policies.yaml`
+- You can override this in the integration options
+- On first setup, a default file is created automatically if missing
+
+## Configuration (UI)
+
+- `cooldown_seconds` (default: 10)
+- `mode_entity` (reserved for future modes/switches)
+- `policy_path` (default: `/config/policies.yaml`)
+- Changes in the UI trigger an automatic reload of policies
+
+## Example policy
+
 ```yaml
 policies:
-  - name: <eindeutiger_name>
-    priority: <integer>         # höher = wichtiger
-    when:                       # Map: entity_id -> erwarteter State (String)
-      binary_sensor.window: "on"
-      climate.living_room: "heat"
-    enforce:                    # auszuführender Service‑Call
-      service: climate.set_hvac_mode
-      target:
-        entity_id: climate.living_room
-      data:
-        hvac_mode: "off"
-```
-
-## Beispiele
-- Heizung aus bei offenem Fenster  
-  Siehe oben – verhindert Energieverschwendung
-- Nachtmodus dimmt Licht
-```yaml
-policies:
-  - name: night_mode_dim_lights
-    priority: 50
+  - name: media_power_off_when_idle
+    priority: 80
     when:
-      sensor.local_time_period: "night"
-      light.living_room: "on"
+      sensor.steckdose_media_power: "<22"
+      switch.steckdose_media: "on"
     enforce:
-      service: light.turn_on
+      service: switch.turn_off
       target:
-        entity_id: light.living_room
-      data:
-        brightness_pct: 20
+        entity_id: switch.steckdose_media
 ```
 
-## Betrieb und Verhalten
-- Beim HA‑Start werden Policies geladen, bei State‑Änderungen evaluiert.
-- Ersttreffer‑Prinzip: höchste Priorität gewinnt, es wird nur eine Policy ausgeführt.
-- Cooldown schützt pro Policy vor wiederholter Ausführung in kurzer Zeit.
-- Event‑Verarbeitung ist serialisiert, um parallele Enforcements zu vermeiden.
- - Loop‑Prevention per Context:
-   - Jeder Enforcement‑Call erhält einen eigenen Context; selbstverursachte Events werden erkannt und ignoriert.
-   - Kontext‑Cleanup nach 10 s verhindert Speicheraufbau.
-   - Periodischer Sicherheits‑Cleanup leert den Kontext‑Cache etwa stündlich.
+If the media power drops below 22 W and the switch is on, Governance turns it off deterministically.
 
-## Observability & Sensoren
-- `sensor.ha_governance_policy_count`
-  - State: Anzahl aktuell geladener Policies.
-  - Verwendung: Schneller Health‑Check, ob Policies korrekt geladen wurden.
-- `sensor.ha_governance_policy_stats`
-  - State: Anzahl der Policies mit Statistiken.
-  - Attribute: Zähler pro Policy (`total`, `today`, `success_*`, `error_*`, `cooldown_skipped_*`, `last_executed`, `last_result`).
-  - Verwendung: Monitoring von Policy‑Aktivität (z. B. wie oft eine Schutzregel greift).
-- `sensor.ha_governance_last_decision`
-  - State: Name der zuletzt entschiedenen Policy (oder `unknown`, wenn noch keine Entscheidung).
-  - Attribute: `timestamp`, `event_type`, `entity_id`, `policy_snapshot_hash`, `enforcement_result`, `context_id`.
-  - Verwendung: Explainability – welche Policy hat zuletzt entschieden, unter welchem Regelstand, mit welchem Ergebnis.
+## House mode state machine (optional)
 
-## Troubleshooting
-- „Policy file not found“ im Log:  
--  Datei unter `/config/policies.yaml` anlegen oder im UI `policy_path` setzen.
-- UI‑Flow fehlt: Version ≥ v0.1.3 installieren, HA neu starten.
-- Änderungen wirken nicht: Nach Policy‑Anpassungen HA neu starten oder kurz warten; bei Pfad‑Änderung im UI erfolgt Reload.
+Governance can model a full house state machine:
 
-## Changelog (kurz)
-- v0.1.13: Event‑Filter auf relevante Entities und Deduplizierung identischer Decisions (LastDecision‑Sensor deutlich ruhiger)
-- v0.1.12: Startup‑Fix – Event‑Listener erst nach HA‑Start registriert; Debug‑Hinweise für fehlende Entities; Fehlerbehandlung im Event‑Handler; vereinheitlichter Logger
-- v0.1.11: Hotfix – Event‑Loop für LastDecision‑Sensor verhindert (`sensor.ha_governance_*` werden nicht mehr ausgewertet)
-- v0.1.10: Decision‑Audit‑Layer (Snapshot‑Hash, DecisionRecords, LastDecision‑Sensor), PolicyStats‑Meta‑Sensor
-- v0.1.9: PolicyCount‑Sensor, dynamischer Integrationstitel, Dispatcher‑Architektur, Reload‑Lock und deterministische Policy‑Sortierung
-- v0.1.8: Schema‑Check und SHA256‑Hash‑Logging für policies.yaml, update‑sicherer Pfad
-- v0.1.7: Periodischer Context‑Cleanup über async_track_time_interval (HA‑konform)
-- v0.1.6: Neuer when‑Matcher mit Operatoren und Attribut‑Support
-- v0.1.4: Default‑Pfad unter `custom_components`, Fallback und README‑Update
-- v0.1.3: UI‑Config repariert (ConfigFlow), manifest config_flow aktiv
-- v0.1.2: manifest ergänzt (config_flow), HACS‑Kompatibilität
-- v0.1.1: HACS‑Metadaten hinzugefügt
-- v0.1.0: Initiale Version
+- Home Day
+- Home Night
+- Away
+- Vacation
 
-## Dokumentation
-- Dokumentations‑Index: [INDEX.md](file:///e:/TRAE/ha-governance/docs/INDEX.md)
-- Governance‑Grundlagen: [README_GOVERNANCE.md](file:///e:/TRAE/ha-governance/docs/README_GOVERNANCE.md)
-- Architektur‑Anleitung: [README_Anleitung.md](file:///e:/TRAE/ha-governance/docs/README_Anleitung.md)
+Transitions become deterministic policies:
 
-## Lizenz
+- No race conditions
+- No mode ping-pong
+- No hidden automations
+
+For a full House Mode setup including helpers, template sensors and policies, see [HOUSE_MODE.md](docs/HOUSE_MODE.md).
+
+## Observability & explainability
+
+- `sensor.ha_governance_policy_count`: count of currently loaded policies
+- `sensor.ha_governance_policy_stats`: per-policy statistics (`total`, `today`, `success_*`, `error_*`, `cooldown_skipped_*`, `last_executed`, `last_result`)
+- `sensor.ha_governance_last_decision`: last decided policy with `timestamp`, `event_type`, `entity_id`, `policy_snapshot_hash`, `enforcement_result`, `context_id`
+
+You can always see which rule fired, why it did so, and whether enforcement succeeded.
+
+## Changelog (short)
+
+- v0.1.13: Event filter on relevant entities and deduplication of identical decisions (LastDecision sensor much quieter)
+- v0.1.12: Startup fix – register event listeners only after HA start; debug hints for missing entities; error handling in the event handler; unified logger
+- v0.1.11: Hotfix – prevents event loop for LastDecision sensor (`sensor.ha_governance_*` no longer evaluated)
+- v0.1.10: Decision audit layer (snapshot hash, DecisionRecords, LastDecision sensor), PolicyStats meta sensor
+- v0.1.9: PolicyCount sensor, dynamic integration title, dispatcher-based architecture, reload lock and deterministic policy sorting
+- v0.1.8: Schema check and SHA256 hash logging for `policies.yaml`, update-safe path
+- v0.1.7: Periodic context cleanup via `async_track_time_interval` (HA-native)
+- v0.1.6: New `when` matcher with operators and attribute support
+- v0.1.4: Default path under `custom_components`, fallback and README update
+- v0.1.3: UI config fixed (ConfigFlow), manifest `config_flow` enabled
+- v0.1.2: Manifest extended (`config_flow`), HACS compatibility
+- v0.1.1: HACS metadata added
+- v0.1.0: Initial version
+
+## Documentation
+
+- Documentation index: [INDEX.md](docs/INDEX.md)
+- Governance basics: [README_GOVERNANCE.md](docs/README_GOVERNANCE.md)
+- Architecture guide: [README_Anleitung.md](docs/README_Anleitung.md)
+
+## License
+
 MIT

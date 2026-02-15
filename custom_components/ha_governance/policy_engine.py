@@ -6,6 +6,7 @@ import hashlib
 from typing import Any, Dict, List, Optional, Tuple
 from homeassistant.core import HomeAssistant, State
 from .const import DEFAULT_POLICY_FILENAME
+_LOGGER = logging.getLogger(__name__)
 
 def _split_service(s: str) -> Tuple[str, str]:
     parts = s.split(".")
@@ -48,7 +49,7 @@ def _match_when(hass: HomeAssistant, when: Dict[str, Any]) -> bool:
     for entity_path, expected in when.items():
         value = _get_entity_value(hass, entity_path)
         if value is None:
-            logging.getLogger(__name__).debug(f"[ha_governance] Entity not found or unavailable: {entity_path}")
+            _LOGGER.debug(f"[ha_governance] Entity not found or unavailable: {entity_path}")
             return False
         op_symbol, compare_value = _parse_expected(expected)
         if op_symbol:
@@ -101,11 +102,10 @@ def ensure_policy_file_exists(hass: HomeAssistant, path: Optional[str] = None) -
                 default_content = src.read()
             with open(target, "w", encoding="utf-8") as dst:
                 dst.write(default_content)
-            logging.getLogger(__name__).info(f"[ha_governance] Created initial policies.yaml at {target}")
+            _LOGGER.info(f"[ha_governance] Created initial policies.yaml at {target}")
     return target
 
 async def load_policies(hass: HomeAssistant, path: Optional[str]) -> List[Dict[str, Any]]:
-    _LOGGER = logging.getLogger(__name__)
     target = get_policy_path(hass, path)
     exists = await hass.async_add_executor_job(os.path.exists, target)
     if not exists:

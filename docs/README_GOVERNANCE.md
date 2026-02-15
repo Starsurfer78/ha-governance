@@ -1,100 +1,84 @@
-HA Governance – Deterministic Policy Layer
+HA Governance – Deterministic Control Layer for Home Assistant
 
 Version 0.1
 
-🧠 Zweck
+🧠 Purpose
 
-HA Governance ist die deterministische Sicherheits- und Validierungsschicht des Hauses.
+HA Governance is the deterministic safety and validation layer of your home.  
+It acts as the control boundary beneath any local “Jarvis”-style orchestrator.
 
-Sie ist:
+It is **not**:
 
-Kein Orchestrator
+- an orchestrator
+- an intent system
+- a planner
+- a comfort engine
 
-Kein Intent-System
+It **is**:
 
-Kein Planner
+- a global state and safety authority
+- a deterministic policy layer below automations and AI
 
-Kein Komfort-Manager
+🏗 Architectural role
 
-Sie ist:
+Layered system:
 
-Eine globale Zustands- und Sicherheits-Instanz.
+- Automation layer      → triggers and flows
+- Jarvis orchestrator   → decisions and planning (optional)
+- HA Governance         → global state and safety policies
+- Home Assistant Core   → state machine
 
-🏗 Architekturrolle
+Governance runs in parallel to automations and overrides actions when global rules are violated.
 
-System-Schichtung:
+🔐 Design principles
 
-Automation Layer      → Trigger & Ablauf
-Jarvis Orchestrator   → Entscheidung & Planung (optional)
-HA Governance         → Globale Zustandsregeln
-Home Assistant Core   → State Machine
+- deterministic – no probabilistic logic
+- no triggers – state-based rules only
+- no multi-step workflows
+- no comfort optimization
+- explicit entity mapping
+- priority-based enforcement
 
+📊 Priority system
 
-Governance läuft parallel zu Automationen und überschreibt bei Bedarf Aktionen.
+Priority  | Category  
+100       | critical safety  
+90–95     | protection  
+70–85     | energy  
+40–65     | comfort limits  
 
-🔐 Designprinzipien
+Rule: Safety > Energy > Comfort
 
-Deterministisch – keine probabilistische Logik
+🏠 Room-based policies
 
-Keine Trigger – nur Zustandsregeln
+Every policy must be associated with a clearly defined room.
 
-Keine Ablaufketten
-
-Keine Komfort-Optimierung
-
-Explizite Entity-Zuordnung
-
-Prioritätsbasiertes Enforcement
-
-📊 Prioritätssystem
-Priority	Kategorie
-100	Kritische Sicherheit
-90–95	Schutzmechanismen
-70–85	Energie
-40–65	Komfort-Grenzen
-<40	Nicht verwenden
-
-Regel:
-
-Safety > Energy > Comfort
-
-🏠 Raum-basierte Policies
-
-Jede Policy muss einem klaren Raum zugeordnet sein.
-
-Beispiel:
+Example:
 
 - name: heating_window_protection_wohnzimmer
 
+Not allowed:
 
-Nicht erlaubt:
+- wildcards like `climate.*`
+- global window rules
+- implicit room logic
 
-Wildcards wie climate.*
+🪟 Window aggregation
 
-Globale Fenster-Regeln
+If a room has multiple windows, use a dedicated template binary sensor:
 
-Implizite Raumlogik
+`binary_sensor.window_<room>_any_open`
 
-🪟 Fenster-Aggregation
+Policies should reference only this aggregated sensor.
 
-Bei mehreren Fenstern pro Raum wird ein Template-Binary-Sensor verwendet:
+Reasons:
 
-binary_sensor.window_<raum>_any_open
+- clear mapping
+- debuggable in HA state
+- scalable
+- orchestrator-friendly
 
-
-Policies referenzieren nur diesen Sammelsensor.
-
-Warum:
-
-Eindeutige Zuordnung
-
-Debugbarkeit
-
-Skalierbarkeit
-
-Orchestrator-Kompatibilität
-
-🔥 Heizungs-Schutzregel (Beispiel)
+🔥 Heating protection rule (example)
 - name: heating_window_protection_wohnzimmer
   priority: 95
   when:
@@ -104,143 +88,106 @@ Orchestrator-Kompatibilität
     service: climate.turn_off
     target: climate.wohnzimmer
 
+This rule must not be duplicated in automations.
 
-Diese Regel darf nicht in Automationen dupliziert werden.
+⚡ Energy rules
 
-⚡ Energie-Regeln
+Energy policies may:
 
-Energie-Policies dürfen:
+- avoid standby consumption
+- correct extreme usage situations
+- turn off devices in confirmed idle states
 
-Standby vermeiden
+Energy policies must not:
 
-Extreme Verbrauchssituationen korrigieren
+- actively optimize comfort
+- implement schedules
+- interpret user intent
 
-Idle-Zustände abschalten
+💡 Comfort boundaries
 
-Energie-Policies dürfen nicht:
+Governance may constrain comfort but does not orchestrate it.
 
-Komfort aktiv optimieren
+Allowed:
 
-Zeitpläne implementieren
+- maximum temperature limits
+- night brightness limits
+- minimum temperature limits
 
-Benutzerintention interpretieren
+Not allowed:
 
-💡 Komfort-Grenzen
+- activating scenes
+- steering adaptive lighting (except for safety)
+- implementing motion logic
 
-Governance darf Komfort begrenzen, aber nicht gestalten.
+🛑 What policies must never contain
 
-Erlaubt:
+- triggers
+- delays (unless explicitly supported)
+- sequences
+- multi-step workflows
+- intent interpretation
+- user behavior logic
 
-Maximaltemperatur
+Policies are state rules, not programs.
 
-Nacht-Helligkeitsgrenze
+🧪 Test and validation
 
-Mindesttemperatur
+When adding a new policy:
 
-Nicht erlaubt:
+- verify entity mapping
+- check conflicts with existing policies
+- set the correct priority
+- run a manual test scenario
+- inspect logs
 
-Szenen aktivieren
-
-Adaptive Lighting steuern (außer Schutzfall)
-
-Bewegungslogik implementieren
-
-🛑 Was Policies niemals enthalten dürfen
-
-Trigger
-
-Delays (außer explizit unterstützt)
-
-Sequenzen
-
-Mehrstufige Workflows
-
-Intent-Interpretation
-
-Benutzerlogik
-
-Policies sind Zustandsregeln, keine Programme.
-
-🧪 Test- und Validierungsprozess
-
-Beim Hinzufügen einer neuen Policy:
-
-Entity-Mapping prüfen
-
-Konflikte mit bestehenden Policies prüfen
-
-Priorität korrekt setzen
-
-Test-Szenario manuell ausführen
-
-Logs prüfen
-
-Erst danach produktiv verwenden
+Only then use it in production.
 
 🧠 Debugging
 
-Bei unerwartetem Verhalten:
+For unexpected behavior:
 
-HA Governance Logs prüfen
+- inspect HA Governance logs
+- identify the policy name
+- compare priorities
+- check triggering states
+- distinguish automation vs policy
 
-Policy-Name identifizieren
+Rule of thumb:  
+If something was turned off unexpectedly, it was probably Governance.
 
-Priorität vergleichen
+🔄 Change guidelines
 
-Triggernde Zustände prüfen
+Add a new policy only if:
 
-Automation vs. Policy unterscheiden
+- the rule is globally valid
+- it appears multiple times in automations
+- it describes a physical constraint
+- it is safety or energy protection
 
-Merksatz:
+Do not create policies for:
 
-Wenn etwas unerwartet abgeschaltet wird, war es wahrscheinlich Governance.
+- one-off edge cases
+- pure comfort features
+- experimental logic
 
-🔄 Änderungsregeln
+🎯 Target state
 
-Neue Policy nur hinzufügen, wenn:
+Governance should:
 
-Regel global gilt
+- be invisible in normal operation
+- only intervene on boundary violations
+- log clearly
+- remain deterministic
+- protect the Jarvis-style orchestrator
 
-Mehrfach in Automationen vorkommt
+📌 Future
 
-Physikalische Grenze beschreibt
+Governance is compatible with:
 
-Sicherheits- oder Energieschutz ist
+- goal-based optimization
+- multi-room orchestrators
+- LLM-assisted planning
+- energy scoring
 
-Keine Policy für:
-
-Einmalige Sonderfälle
-
-Komfort-Features
-
-Experimentelle Logik
-
-🎯 Zielzustand
-
-Governance soll:
-
-Unsichtbar im Normalbetrieb sein
-
-Nur bei Grenzverletzungen eingreifen
-
-Klar loggen
-
-Deterministisch bleiben
-
-Jarvis-Orchestrator absichern
-
-📌 Zukunft
-
-Governance ist kompatibel mit:
-
-Goal-Based Optimization
-
-Multi-Room Orchestrator
-
-LLM-gestützter Planung
-
-Energy-Scoring
-
-Governance bleibt jedoch immer:
-
-Deterministische Realitätsschicht.
+But it always remains the deterministic reality layer.

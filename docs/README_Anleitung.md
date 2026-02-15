@@ -2,57 +2,52 @@ Jarvis House Architecture – Room & Policy Model
 
 Version 0.1
 
-🧠 Zweck
+🧠 Purpose
 
-Dieses Dokument beschreibt die strukturelle Architektur des Smart-Home-Systems.
+This document describes the structural architecture of the smart home system built on HA Governance as deterministic control layer.
 
-Ziel:
+Goals:
 
-Deterministische Sicherheitslogik
+- deterministic safety logic
+- clear separation between automations and policies
+- room-based structure
+- scalability for a Jarvis-style orchestrator
+- debuggability and maintainability
 
-Klare Trennung zwischen Automationen und Policies
+🏗 System layers
 
-Raum-basierte Struktur
-
-Skalierbarkeit für Jarvis-Orchestrator
-
-Debugbarkeit und Wartbarkeit
-
-🏗 System-Schichten
-Automation Layer  → Trigger & Ablauf
-Policy Layer      → Globale Zustandsregeln (HA Governance)
-Home Assistant    → State Machine
-Jarvis (optional) → Orchestrator / Intent / Goals
+- Automation layer  → triggers and flows
+- Policy layer      → global state rules (HA Governance)
+- Home Assistant    → state machine
+- Jarvis (optional) → orchestrator / intent / goals
 
 
-Wichtig:
+Important:
 
-Automationen lösen Aktionen aus.
+- automations trigger actions
+- policies enforce global safety and energy boundaries
+- policies contain no trigger logic
+- automations must not contain global protection rules
 
-Policies erzwingen globale Sicherheits- und Energiegrenzen.
+🏠 Room model
 
-Policies enthalten keine Trigger-Logik.
+Each room is treated as a logical unit.
 
-Automationen enthalten keine globalen Schutzbedingungen.
+A room consists of:
 
-🏠 Raum-Modell
+Component                 Purpose  
+`window_<room>_any_open`  at least one window open  
+`presence_<room>`         occupancy in the room  
+`climate.<room>`          heating / climate entity  
+`light.<room>_main`       main light group  
+`sensor.temperature_<room>`  temperature  
+`sensor.co2_<room>` (optional) air quality  
 
-Jeder Raum wird als logische Einheit betrachtet.
+🪟 Window aggregation
 
-Ein Raum besteht aus:
+If a room has multiple windows, they are combined via a template binary sensor.
 
-Komponente	Zweck
-window_<raum>_any_open	Mindestens ein Fenster offen
-presence_<raum>	Präsenz im Raum
-climate.<raum>	Heizungs-Entity
-light.<raum>_main	Hauptlicht-Gruppe
-sensor.temperature_<raum>	Temperatur
-sensor.co2_<raum> (optional)	Luftqualität
-🪟 Fenster-Aggregation
-
-Wenn ein Raum mehrere Fenster besitzt, werden diese über einen Template-Binary-Sensor zusammengefasst.
-
-Beispiel:
+Example:
 
 template:
   - binary_sensor:
@@ -64,20 +59,16 @@ template:
             is_state('binary_sensor.window_wz_rechts', 'on')
           }}
 
+Why?
 
-Warum?
+- no wildcards in policies
+- clear 1:1 mapping between room and heating circuit
+- debuggable in HA state
+- orchestrator compatible
 
-Keine Wildcards in Policies
+🔥 Heating protection rule
 
-Klare 1:1 Beziehung zwischen Raum und Heizkreis
-
-Debugbar im HA-State
-
-Orchestrator-kompatibel
-
-🔥 Heizungs-Schutzregel
-
-Globale Sicherheitsregel:
+Global safety rule:
 
 - name: heating_window_protection_wohnzimmer
   priority: 95
@@ -88,89 +79,72 @@ Globale Sicherheitsregel:
     service: climate.turn_off
     target: climate.wohnzimmer
 
+Rule:
 
-Regel:
+If a window is open, heating must not be active.  
+This logic belongs exclusively in the policy layer.
 
-Wenn Fenster offen ist, darf Heizung nicht heizen.
+💡 Lighting logic
 
-Diese Logik gehört ausschließlich in die Policy Layer.
+Lighting automations contain only:
 
-💡 Licht-Logik
+- triggers (motion, lux, TV)
+- flow / sequence
 
-Licht-Automationen enthalten nur:
+Global limits (for example night mode) belong into policies.  
+Adaptive lighting remains a comfort engine and must not be forced permanently.
 
-Trigger (Bewegung, Lux, TV)
+⚡ Media socket logic
 
-Ablauf
+Shutdown happens only in a confirmed idle state.
 
-Globale Grenzen (z. B. Nachtmodus) gehören in Policies.
+- automation detects idle
+- policy enforces shutdown
 
-Adaptive Lighting bleibt Komfort-Engine und wird nicht dauerhaft überschrieben.
+Separation:
 
-⚡ Media-Steckdose-Logik
+- automation = state detection
+- policy = physical constraint
 
-Abschaltung erfolgt nur bei bestätigtem Idle-Zustand.
+📛 Naming conventions
 
-Automation erkennt Idle.
+All room-based entities follow this pattern:
 
-Policy erzwingt Abschaltung.
+- `window_<room>_any_open`
+- `presence_<room>`
+- `climate.<room>`
+- `light.<room>_main`
 
-Trennung:
+No wildcards in policies.  
+No global window aggregates.
 
-Automation = Zustandserkennung
+🔐 Safety principles
 
-Policy = physikalische Begrenzung
+- safety has highest priority
+- energy comes before comfort
+- policies contain no triggers
+- automations contain no global protection rules
+- LLMs (if used) are never final decision makers
 
-📛 Namenskonvention
+🚦 Migration rule
 
-Alle raumbasierten Entitäten folgen dem Schema:
+When refactoring automations:
 
-window_<raum>_any_open
-presence_<raum>
-climate.<raum>
-light.<raum>_main
+- if a condition describes a global physical boundary,  
+  move it into `policies.yaml`
+- keep the rest of the automation unchanged
 
+🎯 Target state
 
-Keine Wildcards in Policies.
+The system should:
 
-Keine globalen Fenster-Aggregate.
+- be deterministic
+- be scalable
+- be debuggable
+- be orchestrator-ready
+- not depend on implicit logic chains
 
-🔐 Sicherheitsprinzipien
+📌 Note
 
-Safety hat höchste Priorität.
-
-Energie kommt vor Komfort.
-
-Policies enthalten keine Trigger.
-
-Automationen enthalten keine globalen Schutzregeln.
-
-LLMs (falls verwendet) sind niemals Entscheider.
-
-🚦 Migration-Regel
-
-Beim Refactoring von Automationen gilt:
-
-Wenn eine Bedingung eine globale physikalische Grenze beschreibt,
-wird sie in policies.yaml verschoben.
-
-Automationen bleiben ansonsten unverändert.
-
-🎯 Zielzustand
-
-Das System soll:
-
-Deterministisch sein
-
-Skalierbar sein
-
-Debugbar sein
-
-Orchestrator-fähig sein
-
-Nicht von impliziten Logik-Ketten abhängen
-
-📌 Hinweis
-
-Dieses Dokument beschreibt die Struktur.
-Es ersetzt keine Automationen, sondern definiert deren Rahmen.
+This document describes the structure.  
+It does not replace automations, it defines their boundaries.
