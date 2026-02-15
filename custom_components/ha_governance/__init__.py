@@ -100,6 +100,13 @@ async def _register_listeners(hass: HomeAssistant) -> None:
             policies = hass.data[DOMAIN].get("policies", [])
             if not policies:
                 return
+            entity_id = None
+            try:
+                entity_id = event.data.get("entity_id")
+            except Exception:
+                entity_id = None
+            if entity_id and entity_id.startswith("sensor.ha_governance_"):
+                return
             if is_self_caused(getattr(event, "context", None)):
                 _LOGGER.debug("[ha_governance] Ignoring self-caused event")
                 return
@@ -118,13 +125,10 @@ async def _register_listeners(hass: HomeAssistant) -> None:
                         if e.get("name") == name and e.get("matched"):
                             e["cooldown_blocked"] = True
                             break
+            if winner is None and result is None:
+                return
             data = hass.data[DOMAIN]
             snapshot_hash = data.get("policy_snapshot_hash", "")
-            entity_id = None
-            try:
-                entity_id = event.data.get("entity_id")
-            except Exception:
-                entity_id = None
             context_id = None
             ctx = getattr(event, "context", None)
             if ctx is not None:
