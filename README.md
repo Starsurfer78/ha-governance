@@ -23,8 +23,7 @@
 
 ## Features
 - HA‑native async, kein eigener Scheduler, keine Neben‑Threads
-- YAML‑Policies in `/config/custom_components/ha_governance/policies.yaml` (Default)  
-  Fallback: `/config/ha_governance/policies.yaml` (falls vorhanden)
+- YAML‑Policies in `/config/ha_governance/policies.yaml` (Default, update‑sicher)
 - Prioritätsbasierte, deterministische Evaluation
 - Enforcement via `hass.services.async_call`
 - Cooldown‑Loop‑Protection (Default 10 s), konfigurierbar
@@ -92,6 +91,7 @@ policies:
 - Änderungen wirken nicht: Nach Policy‑Anpassungen HA neu starten oder kurz warten; bei Pfad‑Änderung im UI erfolgt Reload.
 
 ## Changelog (kurz)
+- v0.1.8: Schema‑Check und SHA256‑Hash‑Logging für policies.yaml, update‑sicherer Pfad
 - v0.1.7: Periodischer Context‑Cleanup über async_track_time_interval (HA‑konform)
 - v0.1.6: Neuer when‑Matcher mit Operatoren und Attribut‑Support
 - v0.1.4: Default‑Pfad unter `custom_components`, Fallback und README‑Update

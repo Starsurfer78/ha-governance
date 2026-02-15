@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import operator
+import hashlib
 from typing import Any, Dict, List, Optional, Tuple
 from homeassistant.core import HomeAssistant, State
 from .const import DEFAULT_POLICY_PATH
@@ -75,6 +76,13 @@ def _load_yaml(path: str) -> Dict[str, Any]:
     with open(path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f) or {}
 
+def _compute_file_hash(path: str) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
 def get_policy_path(hass: HomeAssistant, path: Optional[str] = None) -> str:
     if path:
         return path
@@ -108,7 +116,15 @@ async def load_policies(hass: HomeAssistant, path: Optional[str]) -> List[Dict[s
             return []
     try:
         data = await hass.async_add_executor_job(_load_yaml, target)
-        items = data.get("policies", []) if isinstance(data, dict) else []
+        if not isinstance(data, dict) or "policies" not in data:
+            _LOGGER.error(f"Invalid policy file structure at {target}. Governance disabled (expected dict with 'policies' list).")
+            return []
+        items = data.get("policies", [])
+        try:
+            digest = await hass.async_add_executor_job(_compute_file_hash, target)
+            _LOGGER.debug(f"[ha_governance] Loaded policies.yaml SHA256: {digest} from {target}")
+        except Exception:
+            _LOGGER.debug(f"[ha_governance] Could not compute SHA256 for policies at {target}")
         _LOGGER.info(f"Loaded {len(items)} policies from {target}")
         return _sort_policies(items)
     except Exception as e:
