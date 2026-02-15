@@ -84,6 +84,19 @@ policies:
    - Kontext‑Cleanup nach 10 s verhindert Speicheraufbau.
    - Periodischer Sicherheits‑Cleanup leert den Kontext‑Cache etwa stündlich.
 
+## Observability & Sensoren
+- `sensor.ha_governance_policy_count`
+  - State: Anzahl aktuell geladener Policies.
+  - Verwendung: Schneller Health‑Check, ob Policies korrekt geladen wurden.
+- `sensor.ha_governance_policy_stats`
+  - State: Anzahl der Policies mit Statistiken.
+  - Attribute: Zähler pro Policy (`total`, `today`, `success_*`, `error_*`, `cooldown_skipped_*`, `last_executed`, `last_result`).
+  - Verwendung: Monitoring von Policy‑Aktivität (z. B. wie oft eine Schutzregel greift).
+- `sensor.ha_governance_last_decision`
+  - State: Name der zuletzt entschiedenen Policy (oder `unknown`, wenn noch keine Entscheidung).
+  - Attribute: `timestamp`, `event_type`, `entity_id`, `policy_snapshot_hash`, `enforcement_result`, `context_id`.
+  - Verwendung: Explainability – welche Policy hat zuletzt entschieden, unter welchem Regelstand, mit welchem Ergebnis.
+
 ## Troubleshooting
 - „Policy file not found“ im Log:  
 -  Datei unter `/config/policies.yaml` anlegen oder im UI `policy_path` setzen.
