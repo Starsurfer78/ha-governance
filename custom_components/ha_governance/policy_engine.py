@@ -75,22 +75,35 @@ def _load_yaml(path: str) -> Dict[str, Any]:
     with open(path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f) or {}
 
+def get_policy_path(hass: HomeAssistant, path: Optional[str] = None) -> str:
+    if path:
+        return path
+    config_dir = hass.config.path("ha_governance")
+    os.makedirs(config_dir, exist_ok=True)
+    return os.path.join(config_dir, "policies.yaml")
+
+def ensure_policy_file_exists(hass: HomeAssistant, path: Optional[str] = None) -> str:
+    target = get_policy_path(hass, path)
+    if not os.path.exists(target):
+        default_path = os.path.join(os.path.dirname(__file__), "policies.yaml")
+        if os.path.exists(default_path):
+            with open(default_path, "r", encoding="utf-8") as src:
+                default_content = src.read()
+            with open(target, "w", encoding="utf-8") as dst:
+                dst.write(default_content)
+            logging.getLogger(__name__).info(f"[ha_governance] Created initial policies.yaml at {target}")
+    return target
+
 async def load_policies(hass: HomeAssistant, path: Optional[str]) -> List[Dict[str, Any]]:
-    target = path or DEFAULT_POLICY_PATH
     _LOGGER = logging.getLogger(__name__)
+    target = get_policy_path(hass, path or DEFAULT_POLICY_PATH)
     exists = await hass.async_add_executor_job(os.path.exists, target)
     if not exists:
-        fallback_paths = [
-            "/config/custom_components/ha_governance/policies.yaml",
-            "/config/ha_governance/policies.yaml",
-        ]
-        for fp in fallback_paths:
-            if await hass.async_add_executor_job(os.path.exists, fp):
-                _LOGGER.info(f"Using fallback policy file: {fp}")
-                target = fp
-                exists = True
-                break
-        if not exists:
+        legacy_path = "/config/custom_components/ha_governance/policies.yaml"
+        if await hass.async_add_executor_job(os.path.exists, legacy_path):
+            _LOGGER.warning(f"Found legacy policy file at {legacy_path}. Please move it to {target} to make it update-safe.")
+            target = legacy_path
+        else:
             _LOGGER.warning(f"Policy file not found: {target}. Using empty policy list.")
             return []
     try:

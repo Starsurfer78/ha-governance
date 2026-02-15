@@ -5,7 +5,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EVENT_HOMEASSISTANT_START, EVENT_STATE_CHANGED
 from .const import DOMAIN, CONF_POLICY_PATH, CONF_COOLDOWN_SECONDS, DEFAULT_POLICY_PATH, DEFAULT_COOLDOWN_SECONDS
-from .policy_engine import load_policies, evaluate
+from .policy_engine import load_policies, evaluate, ensure_policy_file_exists
 from .enforcement import apply as apply_enforcement, is_self_caused, setup_periodic_cleanup
 from .config_flow import OptionsFlowHandler
 
@@ -18,6 +18,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         CONF_POLICY_PATH: entry.options.get(CONF_POLICY_PATH, DEFAULT_POLICY_PATH),
         CONF_COOLDOWN_SECONDS: entry.options.get(CONF_COOLDOWN_SECONDS, DEFAULT_COOLDOWN_SECONDS),
     }
+    await hass.async_add_executor_job(
+        ensure_policy_file_exists,
+        hass,
+        hass.data[DOMAIN]["options"].get(CONF_POLICY_PATH),
+    )
     await _reload_policies(hass)
     await _register_listeners(hass)
     await setup_periodic_cleanup(hass)

@@ -4,4 +4,4 @@ CONF_COOLDOWN_SECONDS = "cooldown_seconds"
 CONF_MODE_ENTITY = "mode_entity"
 CONF_POLICY_PATH = "policy_path"
 DEFAULT_COOLDOWN_SECONDS = 10
-DEFAULT_POLICY_PATH = "/config/custom_components/ha_governance/policies.yaml"
+DEFAULT_POLICY_PATH = "/config/ha_governance/policies.yaml"
