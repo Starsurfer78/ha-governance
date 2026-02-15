@@ -96,7 +96,7 @@ def ensure_policy_file_exists(hass: HomeAssistant, path: Optional[str] = None) -
 
 async def load_policies(hass: HomeAssistant, path: Optional[str]) -> List[Dict[str, Any]]:
     _LOGGER = logging.getLogger(__name__)
-    target = get_policy_path(hass, path or DEFAULT_POLICY_PATH)
+    target = get_policy_path(hass, path)
     exists = await hass.async_add_executor_job(os.path.exists, target)
     if not exists:
         legacy_path = "/config/custom_components/ha_governance/policies.yaml"
@@ -104,7 +104,7 @@ async def load_policies(hass: HomeAssistant, path: Optional[str]) -> List[Dict[s
             _LOGGER.warning(f"Found legacy policy file at {legacy_path}. Please move it to {target} to make it update-safe.")
             target = legacy_path
         else:
-            _LOGGER.warning(f"Policy file not found: {target}. Using empty policy list.")
+            _LOGGER.error(f"Policy file not found at {target} and no legacy file found. Governance disabled (no policies loaded).")
             return []
     try:
         data = await hass.async_add_executor_job(_load_yaml, target)
