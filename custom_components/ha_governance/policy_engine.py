@@ -48,6 +48,7 @@ def _match_when(hass: HomeAssistant, when: Dict[str, Any]) -> bool:
     for entity_path, expected in when.items():
         value = _get_entity_value(hass, entity_path)
         if value is None:
+            logging.getLogger(__name__).debug(f"[ha_governance] Entity not found or unavailable: {entity_path}")
             return False
         op_symbol, compare_value = _parse_expected(expected)
         if op_symbol:

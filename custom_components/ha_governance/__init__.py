@@ -45,12 +45,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.data[DOMAIN]["options"].get(CONF_POLICY_PATH),
     )
     await _reload_policies(hass)
-    await _register_listeners(hass)
     await setup_periodic_cleanup(hass)
     await hass.config_entries.async_forward_entry_setups(entry, ["sensor"])
     _setup_daily_stats_reset(hass)
     async def _on_started(event) -> None:
         await _reload_policies(hass)
+        await _register_listeners(hass)
+        _LOGGER.info("[ha_governance] Policies loaded and event listeners registered after HA startup")
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, _on_started)
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
     return True
