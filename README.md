@@ -91,6 +91,7 @@ policies:
 - Änderungen wirken nicht: Nach Policy‑Anpassungen HA neu starten oder kurz warten; bei Pfad‑Änderung im UI erfolgt Reload.
 
 ## Changelog (kurz)
+- v0.1.10: Decision‑Audit‑Layer (Snapshot‑Hash, DecisionRecords, LastDecision‑Sensor), PolicyStats‑Meta‑Sensor
 - v0.1.9: PolicyCount‑Sensor, dynamischer Integrationstitel, Dispatcher‑Architektur, Reload‑Lock und deterministische Policy‑Sortierung
 - v0.1.8: Schema‑Check und SHA256‑Hash‑Logging für policies.yaml, update‑sicherer Pfad
 - v0.1.7: Periodischer Context‑Cleanup über async_track_time_interval (HA‑konform)
