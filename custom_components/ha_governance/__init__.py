@@ -144,7 +144,18 @@ async def _register_listeners(hass: HomeAssistant) -> None:
                 relevant = hass.data[DOMAIN].get("relevant_entities")
                 if entity_id and relevant and entity_id not in relevant:
                     return
-                winner, evaluations = evaluate(hass, list(policies))
+                selected_policies = list(policies)
+                if entity_id:
+                    try:
+                        entity_index = hass.data[DOMAIN].get("entity_index", {})
+                        names = entity_index.get(entity_id, set())
+                        if names:
+                            selected_policies = [p for p in policies if p.get("name") in names]
+                        else:
+                            return
+                    except Exception:
+                        selected_policies = list(policies)
+                winner, evaluations = evaluate(hass, selected_policies)
                 result = None
                 if winner:
                     result = await apply_enforcement(

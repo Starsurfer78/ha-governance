@@ -88,6 +88,10 @@ async def apply(hass: HomeAssistant, policy: Dict[str, Any], options: Dict[str, 
     dat = enforce.get("data", {})
     if not svc:
         return None
+    if policy.get("dry_run"):
+        _LOGGER.info(f"[ha_governance] DRY_RUN policy '{policy_name}' service={svc} target={tgt} data={dat}")
+        _update_policy_stats(hass, policy_name, "dry_run")
+        return "dry_run"
     domain, svc_name = _split_service(svc)
     enforcement_context = Context(parent_id=getattr(trigger_context, "id", None)) if trigger_context else Context()
     async with _COOLDOWN_LOCK:

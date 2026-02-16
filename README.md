@@ -143,6 +143,30 @@ Given identical system state and policy snapshot, the same rule will always win.
 - `policy_path` (default: `/config/policies.yaml`)
 - Changes in the UI trigger an automatic reload of policies
 
+## Policy organization with includes
+
+For larger setups, split policies into multiple files and include them from your main file:
+
+```yaml
+# /config/policies.yaml
+includes:
+  - ha_governance/rooms/*.yaml
+  - ha_governance/energy/*.yaml
+  - ha_governance/heating_window_hmccrtdn_wohnzimmer_buro.yaml
+
+policies:
+  - name: base_policy_example
+    priority: 10
+    when:
+      input_boolean.example: "on"
+    enforce:
+      service: homeassistant.turn_off
+      target:
+        entity_id: input_boolean.example
+```
+
+Included files can either contain a `policies:` list or directly a list of policy items. All items are merged and sorted deterministically (priority desc, then name).
+
 ## Example policy
 
 ```yaml
