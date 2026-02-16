@@ -3,7 +3,7 @@ import logging
 import os
 import operator
 import hashlib
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Set
 from homeassistant.core import HomeAssistant, State
 from .const import DEFAULT_POLICY_FILENAME
 _LOGGER = logging.getLogger(__name__)
@@ -76,6 +76,38 @@ def _sort_policies(policies: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         key=lambda p: (-int(p.get("priority", 0)), str(p.get("name", ""))),
     )
 
+def _extract_target_entities(target: Any) -> List[str]:
+    if isinstance(target, str):
+        return [target]
+    if isinstance(target, dict):
+        value = target.get("entity_id")
+        if isinstance(value, str):
+            return [value]
+        if isinstance(value, list):
+            return [str(v) for v in value if isinstance(v, str)]
+    return []
+
+def build_entity_index(policies: List[Dict[str, Any]]) -> Dict[str, Set[str]]:
+    index: Dict[str, Set[str]] = {}
+    for policy in policies:
+        name = str(policy.get("name", ""))
+        when = policy.get("when", {})
+        if isinstance(when, dict):
+            for entity_path in when.keys():
+                parts = str(entity_path).split(".")
+                if len(parts) >= 2:
+                    entity_id = parts[0] + "." + parts[1]
+                    index.setdefault(entity_id, set()).add(name)
+        enforce = policy.get("enforce", {})
+        if isinstance(enforce, dict):
+            targets = _extract_target_entities(enforce.get("target"))
+            for entity_id in targets:
+                parts = str(entity_id).split(".")
+                if len(parts) >= 2:
+                    normalized = parts[0] + "." + parts[1]
+                    index.setdefault(normalized, set()).add(name)
+    return index
+
 def _load_yaml(path: str) -> Dict[str, Any]:
     import yaml
     with open(path, "r", encoding="utf-8") as f:
@@ -124,17 +156,54 @@ async def load_policies(hass: HomeAssistant, path: Optional[str]) -> List[Dict[s
             return []
     try:
         data = await hass.async_add_executor_job(_load_yaml, target)
-        if not isinstance(data, dict) or "policies" not in data:
+        combined: List[Dict[str, Any]] = []
+        if not isinstance(data, dict):
             _LOGGER.error(f"Invalid policy file structure at {target}. Governance disabled (expected dict with 'policies' list).")
             return []
-        items = data.get("policies", [])
+        base_items = data.get("policies", [])
+        if isinstance(base_items, list):
+            combined.extend(base_items)
+        includes = data.get("includes", [])
+        if isinstance(includes, list) and includes:
+            base_dir = os.path.dirname(target)
+            import glob as _glob
+            for pattern in includes:
+                try:
+                    patt = str(pattern)
+                    if not os.path.isabs(patt):
+                        patt = os.path.join(base_dir, patt)
+                    matched = await hass.async_add_executor_job(_glob.glob, patt)
+                    if not matched:
+                        _LOGGER.warning(f"[ha_governance] Include pattern matched no files: {pattern}")
+                        continue
+                    for inc_file in matched:
+                        try:
+                            inc_data = await hass.async_add_executor_job(_load_yaml, inc_file)
+                        except Exception as e:
+                            _LOGGER.warning(f"[ha_governance] Failed to load include '{inc_file}': {e}")
+                            continue
+                        if isinstance(inc_data, dict):
+                            inc_items = inc_data.get("policies", [])
+                            if isinstance(inc_items, list):
+                                combined.extend(inc_items)
+                            else:
+                                _LOGGER.warning(f"[ha_governance] Included file '{inc_file}' missing 'policies' list")
+                        elif isinstance(inc_data, list):
+                            # Support files that directly contain a list of policies
+                            for item in inc_data:
+                                if isinstance(item, dict):
+                                    combined.append(item)
+                        else:
+                            _LOGGER.warning(f"[ha_governance] Included file '{inc_file}' has invalid structure (ignored)")
+                except Exception as e:
+                    _LOGGER.warning(f"[ha_governance] Error processing include pattern '{pattern}': {e}")
         try:
             digest = await hass.async_add_executor_job(_compute_file_hash, target)
             _LOGGER.debug(f"[ha_governance] Loaded policies.yaml SHA256: {digest} from {target}")
         except Exception:
             _LOGGER.debug(f"[ha_governance] Could not compute SHA256 for policies at {target}")
-        _LOGGER.info(f"Loaded {len(items)} policies from {target}")
-        return _sort_policies(items)
+        _LOGGER.info(f"Loaded {len(combined)} policies from {target}")
+        return _sort_policies(combined)
     except Exception as e:
         _LOGGER.error(f"Error loading policies from {target}: {e}")
         return []

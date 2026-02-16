@@ -19,7 +19,7 @@ from .const import (
     DISPATCHER_POLICY_EXECUTED,
     DISPATCHER_DECISION_UPDATED,
 )
-from .policy_engine import load_policies, evaluate, ensure_policy_file_exists
+from .policy_engine import load_policies, evaluate, ensure_policy_file_exists, build_entity_index
 from .enforcement import apply as apply_enforcement, is_self_caused, setup_periodic_cleanup
 from .config_flow import OptionsFlowHandler
 
@@ -51,7 +51,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async def _on_started(event) -> None:
         await _register_listeners(hass)
         _LOGGER.info("[ha_governance] Event listeners registered after HA startup")
+        _validate_policies(hass)
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, _on_started)
+    async def _handle_reload_service(call) -> None:
+        await _reload_policies(hass)
+        _validate_policies(hass)
+    hass.services.async_register(DOMAIN, "reload_policies", _handle_reload_service)
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
     return True
 
@@ -67,15 +72,9 @@ async def _reload_policies(hass: HomeAssistant) -> None:
         path = options.get(CONF_POLICY_PATH, DEFAULT_POLICY_PATH)
         policies = await load_policies(hass, path)
         data["policies"] = tuple(policies)
-        relevant_entities = set()
-        for p in policies:
-            when = p.get("when", {})
-            if isinstance(when, dict):
-                for entity_path in when.keys():
-                    parts = str(entity_path).split(".")
-                    if len(parts) >= 2:
-                        relevant_entities.add(parts[0] + "." + parts[1])
-        data["relevant_entities"] = frozenset(relevant_entities)
+        entity_index = build_entity_index(list(policies))
+        data["entity_index"] = entity_index
+        data["relevant_entities"] = frozenset(entity_index.keys())
         try:
             snapshot_hash = hashlib.sha256(
                 json.dumps(policies, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -89,6 +88,28 @@ async def _reload_policies(hass: HomeAssistant) -> None:
             if entry.title != new_title:
                 hass.config_entries.async_update_entry(entry, title=new_title)
         async_dispatcher_send(hass, DISPATCHER_POLICIES_UPDATED)
+
+
+def _validate_policies(hass: HomeAssistant) -> None:
+    data = hass.data.get(DOMAIN, {})
+    policies = data.get("policies", ())
+    for policy in policies:
+        name = str(policy.get("name", ""))
+        when = policy.get("when", {})
+        if isinstance(when, dict):
+            for entity_path in when.keys():
+                parts = str(entity_path).split(".")
+                if len(parts) >= 2:
+                    entity_id = parts[0] + "." + parts[1]
+                    if hass.states.get(entity_id) is None:
+                        _LOGGER.warning(f"[ha_governance] Policy '{name}': Entity '{entity_id}' not found")
+        enforce = policy.get("enforce", {})
+        if isinstance(enforce, dict):
+            svc = enforce.get("service")
+            if isinstance(svc, str) and "." in svc:
+                domain, svc_name = svc.split(".", 1)
+                if not hass.services.has_service(domain, svc_name):
+                    _LOGGER.warning(f"[ha_governance] Policy '{name}': Service '{svc}' not found")
 
 
 def _setup_daily_stats_reset(hass: HomeAssistant) -> None:
